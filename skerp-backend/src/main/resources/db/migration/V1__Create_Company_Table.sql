@@ -1,0 +1,6 @@
+CREATE TABLE company (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    created DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Active'
+);

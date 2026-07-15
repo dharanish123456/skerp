@@ -1,0 +1,21 @@
+/* Layout — main content area fills remaining space */
+.dashboard-main {
+  position: absolute;
+  top: 4.5rem;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: auto;
+  background-color: #f8fafc;
+  transition: left 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Below lg (1200px) sidebar is off-screen, main takes full width */
+@media (min-width: 1200px) {
+  .dashboard-main {
+    left: 15rem;      /* matches sidebar width */
+  }
+  .dashboard-main.active {
+    left: 86px;       /* collapsed sidebar width */
+  }
+}
