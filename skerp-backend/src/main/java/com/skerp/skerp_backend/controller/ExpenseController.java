@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.Expense;
 import com.skerp.skerp_backend.service.ExpenseService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ public class ExpenseController {
     }
 
     @GetMapping
+    @RequirePermission("VIEW_EXPENSES")
     public ResponseEntity<List<Expense>> getExpenses(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -32,6 +34,7 @@ public class ExpenseController {
     }
 
     @PostMapping
+    @RequirePermission("CREATE_EXPENSES")
     public ResponseEntity<?> createExpense(@RequestBody Map<String, Object> request) {
         try {
             BigDecimal amount = new BigDecimal(request.get("amount").toString());
@@ -47,6 +50,7 @@ public class ExpenseController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("EDIT_EXPENSES")
     public ResponseEntity<?> updateExpense(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         try {
             BigDecimal amount = new BigDecimal(request.get("amount").toString());
@@ -62,6 +66,7 @@ public class ExpenseController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_EXPENSES")
     public ResponseEntity<?> deleteExpense(@PathVariable Long id) {
         try {
             expenseService.deleteExpense(id);
@@ -72,6 +77,7 @@ public class ExpenseController {
     }
 
     @GetMapping("/summary")
+    @RequirePermission("VIEW_EXPENSES")
     public ResponseEntity<?> getExpenseSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

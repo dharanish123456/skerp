@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.Employee;
 import com.skerp.skerp_backend.service.EmployeeService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,11 +23,13 @@ public class EmployeeController {
     }
 
     @GetMapping
+    @RequirePermission("VIEW_EMPLOYEES")
     public ResponseEntity<List<Employee>> getAllEmployees() {
         return ResponseEntity.ok(employeeService.getAllEmployees());
     }
 
     @PostMapping(consumes = "multipart/form-data")
+    @RequirePermission("CREATE_EMPLOYEES")
     public ResponseEntity<?> createEmployee(
             @RequestParam Map<String, String> formFields,
             @RequestParam(value = "aadhaarProofFile", required = false) MultipartFile aadhaarProofFile,
@@ -41,6 +44,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_EMPLOYEES")
     public ResponseEntity<?> deleteEmployee(@PathVariable Long id) {
         try {
             employeeService.deleteEmployee(id);
@@ -51,6 +55,7 @@ public class EmployeeController {
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
+    @RequirePermission("EDIT_EMPLOYEES")
     public ResponseEntity<?> updateEmployee(
             @PathVariable Long id,
             @RequestParam Map<String, String> formFields,
@@ -66,6 +71,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/proofs/{filename}")
+    @RequirePermission("VIEW_EMPLOYEES")
     public ResponseEntity<org.springframework.core.io.Resource> getProofFile(@PathVariable String filename) {
         try {
             org.springframework.core.io.Resource file = employeeService.loadProofFile(filename);

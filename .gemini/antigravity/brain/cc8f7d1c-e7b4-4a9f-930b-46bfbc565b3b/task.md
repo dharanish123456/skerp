@@ -1,0 +1,33 @@
+# Task List: SKERP Authentication & Authorization
+
+- `[x]` Step 1: Add Maven dependencies to pom.xml
+- `[x]` Step 2: Configure application.properties with JWT properties
+- `[x]` Step 3: Create Flyway migration V6__auth_schema.sql
+- `[x]` Step 4: Create JPA entities (Permission, Role, User)
+- `[x]` Step 5: Create UserRepository
+- `[x]` Step 6: Create JwtService
+- `[x]` Step 7: Create CustomUserDetailsService
+- `[x]` Step 8: Create JwtAuthenticationFilter
+- `[x]` Step 9: Modify SecurityConfig (Atomic security enable)
+- `[x]` Step 10: Create DTOs (LoginRequest, AuthResponse, UserInfoResponse)
+- `[x]` Step 11: Create AuthController
+- `[x]` Step 12: Create RequirePermission annotation
+- `[x]` Step 13: Install frontend dependencies (react-router-dom, axios)
+- `[x]` Step 14: Modify api.js to use Axios with request/response interceptors
+- `[x]` Step 15: Create AuthContext
+- `[x]` Step 16: Create LoginPage
+- `[x]` Step 17: Create PrivateRoute component
+- `[x]` Step 18: Modify main.jsx and App.jsx to configure routing and wrap AuthProvider
+- `[x]` Step 19: Migrate all services/pages fetch() -> axios calls
+  - `[x]` employeeAdvanceService.js
+  - `[x]` expenseService.js
+  - `[x]` useCompanyDepartments.js
+  - `[x]` Sidebar.jsx (company fetch)
+  - `[x]` EmployeeList.jsx
+  - `[x]` AddEmployee.jsx
+  - `[x]` Company.jsx
+  - `[x]` Department.jsx
+  - `[x]` Expenses.jsx
+  - `[x]` EmployeeAdvance.jsx
+- `[x]` Step 20: Modify TopBar (logout/avatar) and Sidebar (routing properties/annotations)
+- `[x]` Step 21: Verify implementation

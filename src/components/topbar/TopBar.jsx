@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import {
   AppBar,
   Toolbar,
@@ -207,11 +208,23 @@ const TopBar = ({
   pageTitle = "Dashboard",
   breadcrumb = "Home / Dashboard",
 }) => {
+  const { user, logout } = useAuth();
   const [notifAnchor, setNotifAnchor] = useState(null);
   const [profileAnchor, setProfileAnchor] = useState(null);
   const [searchValue, setSearchValue] = useState("");
 
+  const getInitials = (name) => {
+    if (!name) return "US";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length;
+
   const handleMenuClick = () => {
     if (window.matchMedia("(max-width: 1199px)").matches) {
       onMobileToggle && onMobileToggle();
@@ -356,7 +369,7 @@ const TopBar = ({
             sx={sx.avatar}
             onClick={(e) => setProfileAnchor(e.currentTarget)}
           >
-            JD
+            {getInitials(user?.fullName)}
           </Avatar>
         </Tooltip>
 
@@ -373,10 +386,10 @@ const TopBar = ({
             <Typography
               sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#e2e8f0" }}
             >
-              John Doe
+              {user?.fullName || user?.username || "Super Admin"}
             </Typography>
             <Typography sx={{ fontSize: "0.75rem", color: "#6b7fa3" }}>
-              admin@company.com
+              {user?.email || "admin@skerp.com"}
             </Typography>
           </Box>
 
@@ -397,7 +410,10 @@ const TopBar = ({
           <Divider sx={{ borderColor: "#ffffff0f", my: 0.5 }} />
           <MenuItem
             sx={{ ...sx.profileMenuItem, color: "#f87171" }}
-            onClick={() => setProfileAnchor(null)}
+            onClick={() => {
+              setProfileAnchor(null);
+              logout();
+            }}
           >
             <iconify-icon icon="ri:shut-down-line" />
             Log Out

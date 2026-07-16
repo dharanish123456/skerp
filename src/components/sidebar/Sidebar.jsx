@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const menuSections = [
@@ -9,16 +10,16 @@ const menuSections = [
         title: "Dashboard",
         icon: "ri:dashboard-line",
         submenu: [
-          { label: "Overview", href: "#", page: "dashboard-overview" },
-          { label: "Analytics", href: "#", page: "dashboard-analytics" },
+          { label: "Overview", href: "#", page: "dashboard-overview", requiredPermission: "VIEW_DASHBOARD" },
+          { label: "Analytics", href: "#", page: "dashboard-analytics", requiredPermission: "VIEW_DASHBOARD" },
         ],
       },
       {
         title: "Expenses",
         icon: "ri:wallet-3-line",
         submenu: [
-          { label: "Daily Expenses", href: "#", page: "expenses-daily" },
-          { label: "Employee Advance", href: "#", page: "employee-advance" },
+          { label: "Daily Expenses", href: "#", page: "expenses-daily", requiredPermission: "VIEW_EXPENSES" },
+          { label: "Employee Advance", href: "#", page: "employee-advance", requiredPermission: "VIEW_ADVANCES" },
         ],
       },
     ],
@@ -30,145 +31,173 @@ const menuSections = [
         title: "Employee",
         icon: "ri:group-line",
         submenu: [
-          { label: "Employee List", href: "#", page: "employee-list" },
-         
+          { label: "Employee List", href: "#", page: "employee-list", requiredPermission: "VIEW_EMPLOYEES" },
         ],
       },
-      {
-        title: "Company",
-        icon: "ri:building-line", // Changed to a department-appropriate building icon
-        page: "company",      // Put the page target directly here
-        href: "#",
-      },
-      {
-        title: "Department",
-        icon: "ri:git-branch-line",
-        page: "departments",
-        href: "#",
-      },
-    ],
-  },
-];
+        {
+          title: "Company",
+          icon: "ri:building-line",
+          page: "company",
+          href: "#",
+          requiredPermission: "VIEW_COMPANIES",
+        },
+        {
+          title: "Department",
+          icon: "ri:git-branch-line",
+          page: "departments",
+          href: "#",
+          requiredPermission: "VIEW_DEPARTMENTS",
+        },
+      ],
+    },
+    {
+      title: "Administration",
+      items: [
+        {
+          title: "Roles & Permissions",
+          icon: "ri:shield-keyhole-line",
+          page: "roles-permissions",
+          href: "#",
+          requiredPermission: "VIEW_ROLES",
+        },
+      ],
+    },
+  ];
 
-const buildOpenKey = (sectionIndex, itemIndex) =>
-  `${sectionIndex}-${itemIndex}`;
+  const buildOpenKey = (sectionIndex, itemIndex) =>
+    `${sectionIndex}-${itemIndex}`;
 
-const Sidebar = ({
-  isCollapsed = false,
-  isMobileOpen = false,
-  onMobileClose,
-  onToggle,
-  currentPage = "employee-list",
-  onPageChange,
-}) => {
-  const [openKey, setOpenKey] = useState(null);
+  const Sidebar = ({
+    isCollapsed = false,
+    isMobileOpen = false,
+    onMobileClose,
+    onToggle,
+    currentPage = "employee-list",
+    onPageChange,
+  }) => {
+    const [openKey, setOpenKey] = useState(null);
+    const { hasPermission } = useAuth();
 
-  // Sync collapsed state with main content wrapper
-  useEffect(() => {
-    const mainWrapper = document.getElementById('dashboard-main');
-    if (mainWrapper) {
-      if (isCollapsed) {
-        mainWrapper.classList.add('active');
-      } else {
-        mainWrapper.classList.remove('active');
+    // Dynamically restrict page access based on permissions
+    const filteredMenuSections = menuSections.map(section => ({
+      ...section,
+      items: section.items
+        .map(item => item.submenu
+          ? { ...item, submenu: item.submenu.filter(sub => !sub.requiredPermission || hasPermission(sub.requiredPermission)) }
+          : item)
+        .filter(item => {
+          if (item.page && item.requiredPermission && !hasPermission(item.requiredPermission)) return false;
+          return !item.submenu || item.submenu.length > 0;
+        })
+    })).filter(section => section.items.length > 0);
+
+    // Sync collapsed state with main content wrapper
+    useEffect(() => {
+      const mainWrapper = document.getElementById('dashboard-main');
+      if (mainWrapper) {
+        if (isCollapsed) {
+          mainWrapper.classList.add('active');
+        } else {
+          mainWrapper.classList.remove('active');
+        }
       }
-    }
-  }, [isCollapsed]);
+    }, [isCollapsed]);
 
-  // Close mobile drawer on resize to desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1200) {
-        onMobileClose && onMobileClose();
-      }
+    // Close mobile drawer on resize to desktop
+    useEffect(() => {
+      const handleResize = () => {
+        if (window.innerWidth >= 1200) {
+          onMobileClose && onMobileClose();
+        }
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, [onMobileClose]);
+
+    useEffect(() => {
+      const activeParentKey = menuSections
+        .flatMap((section, sectionIndex) =>
+          section.items.map((item, itemIndex) => ({
+            key: buildOpenKey(sectionIndex, itemIndex),
+            pages: Array.isArray(item.submenu)
+              ? item.submenu.map((sub) => sub.page).filter(Boolean)
+              : [],
+          }))
+        )
+        .find((entry) => entry.pages.includes(currentPage))?.key;
+
+      setOpenKey(activeParentKey ?? null);
+    }, [currentPage]);
+
+    const toggleCollapse = () => onToggle && onToggle();
+
+    const handleDropdownToggle = (key) => {
+      setOpenKey((prev) => (prev === key ? null : key));
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [onMobileClose]);
 
-  useEffect(() => {
-    const activeParentKey = menuSections
-      .flatMap((section, sectionIndex) =>
-        section.items.map((item, itemIndex) => ({
-          key: buildOpenKey(sectionIndex, itemIndex),
-          pages: Array.isArray(item.submenu)
-            ? item.submenu.map((sub) => sub.page).filter(Boolean)
-            : [],
-        }))
-      )
-      .find((entry) => entry.pages.includes(currentPage))?.key;
+    const handleNavClick = (e, page) => {
+      e.preventDefault();
+      if (onPageChange) onPageChange(page);
+      if (window.innerWidth < 1200) onMobileClose && onMobileClose();
+    };
 
-    setOpenKey(activeParentKey ?? null);
-  }, [currentPage]);
+    // Position flyout vertically based on hovered li
+    const handleMenuItemMouseEnter = (e, subCount) => {
+      const li = e.currentTarget;
+      const rect = li.getBoundingClientRect();
+      const flyout = li.querySelector('.sidebar-flyout');
+      if (!flyout) return;
+      const flyoutHeight = Math.min(subCount * 40 + 60, window.innerHeight - 24);
+      const maxHeight = window.innerHeight - rect.top - 12;
+      flyout.style.setProperty('--flyout-top', `${rect.top}px`);
+      flyout.style.setProperty('--flyout-max-height', `${Math.min(flyoutHeight, maxHeight)}px`);
+    };
 
-  const toggleCollapse = () => onToggle && onToggle();
-
-  const handleDropdownToggle = (key) => {
-    setOpenKey((prev) => (prev === key ? null : key));
-  };
-
-  const handleNavClick = (e, page) => {
-    e.preventDefault();
-    if (onPageChange) onPageChange(page);
-    if (window.innerWidth < 1200) onMobileClose && onMobileClose();
-  };
-
-  // Position flyout vertically based on hovered li
-  const handleMenuItemMouseEnter = (e, subCount) => {
-    const li = e.currentTarget;
-    const rect = li.getBoundingClientRect();
-    const flyout = li.querySelector('.sidebar-flyout');
-    if (!flyout) return;
-    const flyoutHeight = Math.min(subCount * 40 + 60, window.innerHeight - 24);
-    const maxHeight = window.innerHeight - rect.top - 12;
-    flyout.style.setProperty('--flyout-top', `${rect.top}px`);
-    flyout.style.setProperty('--flyout-max-height', `${Math.min(flyoutHeight, maxHeight)}px`);
-  };
-
-  return (
-    <>
-      <aside
-        className={[
-          'sidebar',
-          isMobileOpen ? 'sidebar-open' : '',
-          isCollapsed ? 'active' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {/* Close button (mobile only) */}
-        <button className="sidebar-close-btn" onClick={onMobileClose}>
-          <iconify-icon icon="ri:close-line"></iconify-icon>
-        </button>
-
-        {/* Logo row */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo__brand">
-            <img src="/logo.png" alt="Logo" className="logo-icon" />
-            <span className="light-logo">MyERP</span>
-          </div>
-          <button className="sidebar-collapse-btn" onClick={toggleCollapse}>
-            <iconify-icon
-              icon={isCollapsed ? 'ri:arrow-right-s-line' : 'ri:arrow-left-s-line'}
-            ></iconify-icon>
+    return (
+      <>
+        <aside
+          className={[
+            'sidebar',
+            isMobileOpen ? 'sidebar-open' : '',
+            isCollapsed ? 'active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {/* Close button (mobile only) */}
+          <button className="sidebar-close-btn" onClick={onMobileClose}>
+            <iconify-icon icon="ri:close-line"></iconify-icon>
           </button>
-        </div>
 
-        {/* Menu area */}
-        <div className="sidebar-menu-area">
+          {/* Logo row */}
+          <div className="sidebar-logo">
+            <div className="sidebar-logo__brand">
+              <img src="/logo.png" alt="Logo" className="logo-icon" />
+              <span className="light-logo">MyERP</span>
+            </div>
+            <button className="sidebar-collapse-btn" onClick={toggleCollapse}>
+              <iconify-icon
+                icon={isCollapsed ? 'ri:arrow-right-s-line' : 'ri:arrow-left-s-line'}
+              ></iconify-icon>
+            </button>
+          </div>
+
+          {/* Menu area */}
+          <div className="sidebar-menu-area">
           <ul className="sidebar-menu" id="sidebar-menu">
-            {menuSections.map((section, sectionIndex) => (
+            {filteredMenuSections.map((section, sectionIndex) => (
               <li key={sectionIndex} style={{ listStyle: 'none' }}>
-                {/* Section group title */}
-                {section.title && (
-                  <span
-                    className={`sidebar-menu-group-title${isCollapsed ? ' hidden' : ''}`}
-                  >
-                    {section.title}
-                  </span>
-                )}
+                  {/* Section group title */}
+                  {section.title && (
+                    <span
+                      className={`sidebar-menu-group-title${isCollapsed ? ' hidden' : ''}`}
+                    >
+                      {section.title}
+                    </span>
+                  )}
 
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+
                   {section.items.map((item, itemIndex) => {
                     const hasSubmenu =
                       Array.isArray(item.submenu) && item.submenu.length > 0;

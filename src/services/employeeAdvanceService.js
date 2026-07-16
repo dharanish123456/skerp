@@ -1,75 +1,57 @@
-import { API_BASE_URL } from '../config/api';
+import api from '../config/api';
 
 export const fetchEmployeeAdvances = async (filters = {}) => {
-  const params = new URLSearchParams();
-  if (filters.employeeId) params.append('employeeId', filters.employeeId);
-  if (filters.startDate) params.append('startDate', filters.startDate);
-  if (filters.endDate) params.append('endDate', filters.endDate);
-
-  const response = await fetch(`${API_BASE_URL}/employee-advances?${params.toString()}`);
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || 'Failed to fetch employee advances');
+  try {
+    const response = await api.get('/employee-advances', { params: filters });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch employee advances');
   }
-  return response.json();
 };
 
 export const createEmployeeAdvance = async (payload) => {
-  const response = await fetch(`${API_BASE_URL}/employee-advances`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || 'Failed to create employee advance');
+  try {
+    const response = await api.post('/employee-advances', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to create employee advance');
   }
-  return response.json();
 };
 
 export const updateEmployeeAdvance = async (id, payload) => {
-  const response = await fetch(`${API_BASE_URL}/employee-advances/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || 'Failed to update employee advance');
+  try {
+    const response = await api.put(`/employee-advances/${id}`, payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update employee advance');
   }
-  return response.json();
 };
 
 export const deleteEmployeeAdvance = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/employee-advances/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || 'Failed to delete employee advance');
+  try {
+    await api.delete(`/employee-advances/${id}`);
+    return true;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete employee advance');
   }
-  return true;
 };
 
 export const fetchAdvanceSummary = async (filters = {}) => {
-  const params = new URLSearchParams();
-  if (filters.startDate) params.append('startDate', filters.startDate);
-  if (filters.endDate) params.append('endDate', filters.endDate);
-
-  const response = await fetch(`${API_BASE_URL}/employee-advances/summary?${params.toString()}`);
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || 'Failed to fetch advance summary');
+  try {
+    const response = await api.get('/employee-advances/summary', { params: filters });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch advance summary');
   }
-  return response.json();
 };
 
 export const fetchEmployees = async () => {
-  const response = await fetch(`${API_BASE_URL}/employees`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch employees');
+  try {
+    const response = await api.get('/employees');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch employees');
   }
-  return response.json();
 };
 
 // Dummy exports to prevent errors from cached legacy page versions in the browser

@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.ExpenseCategory;
 import com.skerp.skerp_backend.service.ExpenseCategoryService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +22,13 @@ public class ExpenseCategoryController {
     }
 
     @GetMapping
+    @RequirePermission("VIEW_EXPENSES")
     public ResponseEntity<List<ExpenseCategory>> getActiveCategories() {
         return ResponseEntity.ok(categoryService.getActiveCategories());
     }
 
     @PostMapping
+    @RequirePermission("CREATE_EXPENSES")
     public ResponseEntity<?> createCategory(@RequestBody Map<String, String> request) {
         try {
             String name = request.get("name");
@@ -39,6 +42,7 @@ public class ExpenseCategoryController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("EDIT_EXPENSES")
     public ResponseEntity<?> updateCategory(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
             String name = request.get("name");
@@ -52,6 +56,7 @@ public class ExpenseCategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_EXPENSES")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
         try {
             categoryService.softDeleteCategory(id);

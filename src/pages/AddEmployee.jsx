@@ -42,7 +42,8 @@ import { useIndianStates } from '../hooks/useIndianStates';
 import { useCountryCodes } from '../hooks/useCountryCodes';
 import { usePhoneValidation } from '../hooks/usePhoneValidation';
 import { useCompanyDepartments } from '../hooks/useCompanyDepartments';
-import { API_BASE_URL } from '../config/api';
+import api from '../config/api';
+
 
 
 // Session storage key
@@ -403,31 +404,22 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
       if (files.insuranceProof) fd.append('insuranceProofFile', files.insuranceProof);
 
       const url = employee?.id
-        ? `${API_BASE_URL}/employees/${employee.id}`
-        : `${API_BASE_URL}/employees`;
-      const method = employee?.id ? 'PUT' : 'POST';
+        ? `/employees/${employee.id}`
+        : `/employees`;
 
-      const response = await fetch(url, {
-        method: method,
-        body: fd,
-        // Note: Do NOT set Content-Type header — browser sets it automatically with boundary
-      });
+      const response = employee?.id
+        ? await api.put(url, fd)
+        : await api.post(url, fd);
 
-      if (response.ok) {
-        setSnackbarMessage(employee?.id ? 'Employee updated successfully!' : 'Employee registered successfully!');
-        setSnackbarSeverity('success');
-        setShowSnackbar(true);
-        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-        setTimeout(() => {
-          if (onSuccess) onSuccess();
-          else if (onCancel) onCancel();
-        }, 1500);
-      } else {
-        const err = await response.json();
-        setSnackbarMessage(err.message || 'Saving failed. Please try again.');
-        setSnackbarSeverity('error');
-        setShowSnackbar(true);
-      }
+      setSnackbarMessage(employee?.id ? 'Employee updated successfully!' : 'Employee registered successfully!');
+      setSnackbarSeverity('success');
+      setShowSnackbar(true);
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+        else if (onCancel) onCancel();
+      }, 1500);
+
     } catch (err) {
       setSnackbarMessage('Registration failed. Connection error.');
       setSnackbarSeverity('error');

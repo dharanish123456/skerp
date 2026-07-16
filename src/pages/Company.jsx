@@ -39,7 +39,9 @@ import {
   ViewColumn as ColumnIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { API_BASE_URL } from '../config/api';
+import api from '../config/api';
+import { useAuth } from '../context/AuthContext';
+
 
 // ── Dummy Data ─────────────────────────────────────────────
 const INITIAL_COMPANIES = [
@@ -103,6 +105,10 @@ const exportToCSV = (rows, visibleCols) => {
 };
 
 const Company = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('CREATE_COMPANIES');
+  const canEdit = hasPermission('EDIT_COMPANIES');
+  const canDelete = hasPermission('DELETE_COMPANIES');
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState('');
   
@@ -130,17 +136,13 @@ const Company = () => {
   // Fetch Companies on Mount
   const fetchCompanies = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/companies`);
-      if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
-      } else {
-        console.error('Failed to fetch companies');
-      }
+      const response = await api.get('/companies');
+      setCompanies(response.data);
     } catch (error) {
       console.error('Error fetching companies:', error);
     }
   };
+
 
   useEffect(() => {
     fetchCompanies();
@@ -217,27 +219,14 @@ const Company = () => {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/companies/${editingCompanyId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const updatedCompany = await response.json();
-          setCompanies(companies.map((c) => (c.id === editingCompanyId ? updatedCompany : c)));
-          setToastMsg(`Company updated successfully!`);
-          setToastSeverity('success');
-          setToastOpen(true);
-          handleCloseDialog();
-        } else {
-          const err = await response.json();
-          setValidationError(err.message || 'Failed to update company');
-        }
+        const response = await api.put(`/companies/${editingCompanyId}`, { name: trimmedName });
+        setCompanies(companies.map((c) => (c.id === editingCompanyId ? response.data : c)));
+        setToastMsg(`Company updated successfully!`);
+        setToastSeverity('success');
+        setToastOpen(true);
+        handleCloseDialog();
       } catch (error) {
-        setValidationError('Error connecting to backend');
+        setValidationError(error.response?.data?.message || 'Failed to update company');
       }
     } else {
       if (companies.some((c) => c.name.toLowerCase() === trimmedName.toLowerCase())) {
@@ -246,45 +235,27 @@ const Company = () => {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/companies`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const newCompany = await response.json();
-          setCompanies([newCompany, ...companies]);
-          setToastMsg(`Company "${trimmedName}" added successfully!`);
-          setToastSeverity('success');
-          setToastOpen(true);
-          setPage(0);
-          handleCloseDialog();
-        } else {
-          const err = await response.json();
-          setValidationError(err.message || 'Failed to add company');
-        }
+        const response = await api.post('/companies', { name: trimmedName });
+        setCompanies([response.data, ...companies]);
+        setToastMsg(`Company "${trimmedName}" added successfully!`);
+        setToastSeverity('success');
+        setToastOpen(true);
+        setPage(0);
+        handleCloseDialog();
       } catch (error) {
-        setValidationError('Error connecting to backend');
+        setValidationError(error.response?.data?.message || 'Failed to add company');
       }
     }
+
   };
 
   const handleDeleteCompany = async (id, name) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setCompanies(companies.filter((c) => c.id !== id));
-        setToastMsg(`Company "${name}" removed successfully.`);
-        setToastSeverity('info');
-        setToastOpen(true);
-      } else {
-        console.error('Failed to delete company');
-      }
+      await api.delete(`/companies/${id}`);
+      setCompanies(companies.filter((c) => c.id !== id));
+      setToastMsg(`Company "${name}" removed successfully.`);
+      setToastSeverity('info');
+      setToastOpen(true);
     } catch (error) {
       console.error('Error deleting company:', error);
     }
@@ -292,19 +263,13 @@ const Company = () => {
 
   const handleToggleStatus = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/companies/${id}/toggle-status`, {
-        method: 'PATCH',
-      });
-      if (response.ok) {
-        const updated = await response.json();
-        setCompanies(companies.map((c) => (c.id === id ? updated : c)));
-      } else {
-        console.error('Failed to toggle status');
-      }
+      const response = await api.patch(`/companies/${id}/toggle-status`);
+      setCompanies(companies.map((c) => (c.id === id ? response.data : c)));
     } catch (error) {
       console.error('Error toggling status:', error);
     }
   };
+
 
   return (
     <Box>
@@ -331,7 +296,7 @@ const Company = () => {
           </Typography>
         </Box>
         
-        <Button
+        {canCreate && <Button
           variant="contained"
           size="small"
           startIcon={<AddIcon />}
@@ -352,7 +317,7 @@ const Company = () => {
           }}
         >
           Add Company
-        </Button>
+        </Button>}
       </Box>
 
       {/* ── Main Panel ── */}
@@ -562,12 +527,12 @@ const Company = () => {
                         <TableCell key={col.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                           <Chip
                             label={company.status}
-                            onClick={() => handleToggleStatus(company.id)}
+                            onClick={canEdit ? () => handleToggleStatus(company.id) : undefined}
                             size="small"
                             sx={{
                               fontSize: '0.7rem',
                               fontWeight: 600,
-                              cursor: 'pointer',
+                              cursor: canEdit ? 'pointer' : 'default',
                               backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
                               color: company.status === 'Active' ? '#15803d' : '#b91c1c',
                               height: 22,
@@ -583,7 +548,7 @@ const Company = () => {
                       if (col.id === 'actions') return (
                         <TableCell key={col.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <Tooltip title="Edit Company">
+                            {canEdit && <Tooltip title="Edit Company">
                               <IconButton
                                 size="small"
                                 color="primary"
@@ -596,8 +561,8 @@ const Company = () => {
                               >
                                 <EditIcon sx={{ fontSize: '1rem' }} />
                               </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete Company">
+                            </Tooltip>}
+                            {canDelete && <Tooltip title="Delete Company">
                               <IconButton
                                 size="small"
                                 color="error"
@@ -610,7 +575,7 @@ const Company = () => {
                               >
                                 <DeleteIcon sx={{ fontSize: '1rem' }} />
                               </IconButton>
-                            </Tooltip>
+                            </Tooltip>}
                           </Box>
                         </TableCell>
                       );

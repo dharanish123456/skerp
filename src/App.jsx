@@ -1,5 +1,8 @@
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import LoginPage from './pages/LoginPage';
+import PrivateRoute from './components/auth/PrivateRoute';
 import './App.css';
 
 const lightTheme = createTheme({
@@ -16,7 +19,14 @@ function App() {
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline />
-      <Layout />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*" element={
+          <PrivateRoute>
+            <Layout />
+          </PrivateRoute>
+        } />
+      </Routes>
     </ThemeProvider>
   );
 }

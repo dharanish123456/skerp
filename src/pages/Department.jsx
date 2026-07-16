@@ -43,7 +43,9 @@ import {
   ViewColumn as ColumnIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { API_BASE_URL } from '../config/api';
+import api from '../config/api';
+import { useAuth } from '../context/AuthContext';
+
 
 const COLUMNS = [
   { id: 'id', label: 'Dept ID', sortable: true },
@@ -99,6 +101,10 @@ const statusStyles = (status) =>
     : { backgroundColor: '#fee2e2', color: '#b91c1c' };
 
 const Department = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('CREATE_DEPARTMENTS');
+  const canEdit = hasPermission('EDIT_DEPARTMENTS');
+  const canDelete = hasPermission('DELETE_DEPARTMENTS');
   const [departments, setDepartments] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState('');
@@ -129,13 +135,8 @@ const Department = () => {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/departments`);
-      if (response.ok) {
-        const data = await response.json();
-        setDepartments(data);
-      } else {
-        console.error('Failed to fetch departments');
-      }
+      const response = await api.get('/departments');
+      setDepartments(response.data);
     } catch (error) {
       console.error('Error fetching departments:', error);
     }
@@ -143,17 +144,13 @@ const Department = () => {
 
   const fetchCompanies = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/companies`);
-      if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
-      } else {
-        console.error('Failed to fetch companies');
-      }
+      const response = await api.get('/companies');
+      setCompanies(response.data);
     } catch (error) {
       console.error('Error fetching companies:', error);
     }
   };
+
 
   useEffect(() => {
     fetchDepartments();
@@ -239,81 +236,50 @@ const Department = () => {
 
     if (editingDepartmentId) {
       try {
-        const response = await fetch(`${API_BASE_URL}/departments/${editingDepartmentId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: departmentName.trim(),
-            companyId: Number(selectedCompany),
-          }),
+        const response = await api.put(`/departments/${editingDepartmentId}`, {
+          name: departmentName.trim(),
+          companyId: Number(selectedCompany),
         });
-
-        if (response.ok) {
-          const updatedDept = await response.json();
-          setDepartments((prev) => prev.map((d) => (d.id === editingDepartmentId ? updatedDept : d)));
-          setToast({
-            open: true,
-            message: `Department updated successfully.`,
-            severity: 'success',
-          });
-          resetDialog();
-        } else {
-          const err = await response.json();
-          setErrors({ departmentName: err.message || 'Failed to update department' });
-        }
+        setDepartments((prev) => prev.map((d) => (d.id === editingDepartmentId ? response.data : d)));
+        setToast({
+          open: true,
+          message: `Department updated successfully.`,
+          severity: 'success',
+        });
+        resetDialog();
       } catch (error) {
-        setErrors({ departmentName: 'Error connecting to backend' });
+        setErrors({ departmentName: error.response?.data?.message || 'Failed to update department' });
       }
     } else {
       try {
-        const response = await fetch(`${API_BASE_URL}/departments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: departmentName.trim(),
-            companyId: Number(selectedCompany),
-          }),
+        const response = await api.post('/departments', {
+          name: departmentName.trim(),
+          companyId: Number(selectedCompany),
         });
-
-        if (response.ok) {
-          const newDept = await response.json();
-          setDepartments((prev) => [newDept, ...prev]);
-          setPage(0);
-          setToast({
-            open: true,
-            message: `Department "${newDept.name}" added successfully.`,
-            severity: 'success',
-          });
-          resetDialog();
-        } else {
-          const err = await response.json();
-          setErrors({ departmentName: err.message || 'Failed to add department' });
-        }
+        setDepartments((prev) => [response.data, ...prev]);
+        setPage(0);
+        setToast({
+          open: true,
+          message: `Department "${response.data.name}" added successfully.`,
+          severity: 'success',
+        });
+        resetDialog();
       } catch (error) {
-        setErrors({ departmentName: 'Error connecting to backend' });
+        setErrors({ departmentName: error.response?.data?.message || 'Failed to add department' });
       }
     }
+
   };
 
   const handleDeleteDepartment = async (id, name) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/departments/${id}`, {
-        method: 'DELETE',
+      await api.delete(`/departments/${id}`);
+      setDepartments((prev) => prev.filter((department) => department.id !== id));
+      setToast({
+        open: true,
+        message: `Department "${name}" removed successfully.`,
+        severity: 'info',
       });
-      if (response.ok) {
-        setDepartments((prev) => prev.filter((department) => department.id !== id));
-        setToast({
-          open: true,
-          message: `Department "${name}" removed successfully.`,
-          severity: 'info',
-        });
-      } else {
-        console.error('Failed to delete department');
-      }
     } catch (error) {
       console.error('Error deleting department:', error);
     }
@@ -321,19 +287,13 @@ const Department = () => {
 
   const handleToggleStatus = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/departments/${id}/toggle-status`, {
-        method: 'PATCH',
-      });
-      if (response.ok) {
-        const updated = await response.json();
-        setDepartments((prev) => prev.map((d) => (d.id === id ? updated : d)));
-      } else {
-        console.error('Failed to toggle status');
-      }
+      const response = await api.patch(`/departments/${id}/toggle-status`);
+      setDepartments((prev) => prev.map((d) => (d.id === id ? response.data : d)));
     } catch (error) {
       console.error('Error toggling status:', error);
     }
   };
+
 
   const handleSort = (columnId) => {
     if (orderBy === columnId) {
@@ -374,7 +334,7 @@ const Department = () => {
           </Typography>
         </Box>
 
-        <Button
+        {canCreate && <Button
           variant="contained"
           size="small"
           startIcon={<AddIcon />}
@@ -398,7 +358,7 @@ const Department = () => {
           }}
         >
           Add Department
-        </Button>
+        </Button>}
       </Box>
 
       <Paper
@@ -645,7 +605,7 @@ const Department = () => {
                           <TableCell key={column.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                             <Chip
                               label={department.status}
-                              onClick={() => handleToggleStatus(department.id)}
+                              onClick={canEdit ? () => handleToggleStatus(department.id) : undefined}
                               size="small"
                               sx={{
                                 ...statusStyles(department.status),
@@ -653,7 +613,7 @@ const Department = () => {
                                 fontSize: '0.7rem',
                                 height: 22,
                                 border: 'none',
-                                cursor: 'pointer',
+                                cursor: canEdit ? 'pointer' : 'default',
                                 '&:hover': {
                                   opacity: 0.8,
                                 },
@@ -675,7 +635,7 @@ const Department = () => {
                         return (
                           <TableCell key={column.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                             <Box sx={{ display: 'flex', gap: 0.5 }}>
-                              <Tooltip title="Edit Department">
+                              {canEdit && <Tooltip title="Edit Department">
                                 <IconButton
                                   size="small"
                                   color="primary"
@@ -688,8 +648,8 @@ const Department = () => {
                                 >
                                   <EditIcon sx={{ fontSize: '1rem' }} />
                                 </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete Department">
+                              </Tooltip>}
+                              {canDelete && <Tooltip title="Delete Department">
                                 <IconButton
                                   size="small"
                                   color="error"
@@ -702,7 +662,7 @@ const Department = () => {
                                 >
                                   <DeleteIcon sx={{ fontSize: '1rem' }} />
                                 </IconButton>
-                              </Tooltip>
+                              </Tooltip>}
                             </Box>
                           </TableCell>
                         );

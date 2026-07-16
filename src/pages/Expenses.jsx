@@ -52,6 +52,7 @@ import {
   updateCategory,
   deleteCategory,
 } from '../services/expenseService';
+import { useAuth } from '../context/AuthContext';
 
 // Standard columns for expense table
 const COLUMNS = [
@@ -84,6 +85,10 @@ const dateFieldSx = {
 };
 
 const Expenses = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('CREATE_EXPENSES');
+  const canEdit = hasPermission('EDIT_EXPENSES');
+  const canDelete = hasPermission('DELETE_EXPENSES');
   // Expense lists and summaries
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -573,7 +578,7 @@ const Expenses = () => {
                 Recent Expenses
               </Typography>
               <Box display="flex" sx={{ gap: 1 }}>
-                <Button
+                {canCreate && <Button
                   variant="outlined"
                   startIcon={<SettingsIcon />}
                   onClick={() => setCategoryDialogOpen(true)}
@@ -581,7 +586,7 @@ const Expenses = () => {
                   sx={{ fontSize: '0.78rem' }}
                 >
                   Categories
-                </Button>
+                </Button>}
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
@@ -707,12 +712,12 @@ const Expenses = () => {
                       </TableCell>
                       <TableCell color="text.secondary">{row.description || '—'}</TableCell>
                       <TableCell>
-                        <IconButton size="small" color="primary" onClick={() => handleOpenEditExpense(row)}>
+                        {canEdit && <IconButton size="small" color="primary" onClick={() => handleOpenEditExpense(row)}>
                           <EditIcon fontSize="inherit" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDeleteExpense(row.id)}>
+                        </IconButton>}
+                        {canDelete && <IconButton size="small" color="error" onClick={() => handleDeleteExpense(row.id)}>
                           <DeleteIcon fontSize="inherit" />
-                        </IconButton>
+                        </IconButton>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -813,7 +818,7 @@ const Expenses = () => {
         <DialogContent>
           <Grid container spacing={3} sx={{ mt: 0.5 }}>
             {/* Left form category */}
-            <Grid item xs={12} sm={5}>
+            {(canCreate || (editingCategoryId && canEdit)) && <Grid item xs={12} sm={5}>
               <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>
                 {editingCategoryId ? 'Edit Category' : 'Create Category'}
               </Typography>
@@ -870,7 +875,7 @@ const Expenses = () => {
                   )}
                 </Box>
               </Box>
-            </Grid>
+            </Grid>}
 
             {/* Right List categories */}
             <Grid item xs={12} sm={7}>
@@ -900,20 +905,20 @@ const Expenses = () => {
                     </Box>
 
                     {/* Disable action buttons for Miscellaneous default category */}
-                    {cat.name.toLowerCase() !== 'miscellaneous' ? (
+                    {cat.name.toLowerCase() !== 'miscellaneous' && (canEdit || canDelete) ? (
                       <Box>
-                        <IconButton size="small" color="primary" onClick={() => handleEditCategoryInit(cat)}>
+                        {canEdit && <IconButton size="small" color="primary" onClick={() => handleEditCategoryInit(cat)}>
                           <EditIcon fontSize="inherit" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDeleteCategoryClick(cat.id)}>
+                        </IconButton>}
+                        {canDelete && <IconButton size="small" color="error" onClick={() => handleDeleteCategoryClick(cat.id)}>
                           <DeleteIcon fontSize="inherit" />
-                        </IconButton>
+                        </IconButton>}
                       </Box>
-                    ) : (
+                    ) : cat.name.toLowerCase() === 'miscellaneous' ? (
                       <Typography variant="caption" color="text.secondary" sx={{ mr: 1, fontStyle: 'italic' }}>
                         System Default
                       </Typography>
-                    )}
+                    ) : null}
                   </Box>
                 ))}
               </Box>

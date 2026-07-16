@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.EmployeeAdvance;
 import com.skerp.skerp_backend.service.EmployeeAdvanceService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/employee-advances")
-@CrossOrigin(origins = "*")
 public class EmployeeAdvanceController {
 
     private final EmployeeAdvanceService service;
@@ -24,6 +24,7 @@ public class EmployeeAdvanceController {
     }
 
     @GetMapping
+    @RequirePermission("VIEW_ADVANCES")
     public ResponseEntity<?> getAdvances(
             @RequestParam(required = false) Long employeeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -38,6 +39,7 @@ public class EmployeeAdvanceController {
     }
 
     @PostMapping
+    @RequirePermission("CREATE_ADVANCES")
     public ResponseEntity<?> createAdvance(@RequestBody Map<String, Object> payload) {
         try {
             EmployeeAdvance advance = service.createAdvance(payload);
@@ -48,6 +50,7 @@ public class EmployeeAdvanceController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("EDIT_ADVANCES")
     public ResponseEntity<?> updateAdvance(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         try {
             EmployeeAdvance advance = service.updateAdvance(id, payload);
@@ -58,6 +61,7 @@ public class EmployeeAdvanceController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_ADVANCES")
     public ResponseEntity<?> deleteAdvance(@PathVariable Long id) {
         try {
             service.deleteAdvance(id);
@@ -68,6 +72,7 @@ public class EmployeeAdvanceController {
     }
 
     @GetMapping("/summary")
+    @RequirePermission("VIEW_ADVANCES")
     public ResponseEntity<?> getSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate

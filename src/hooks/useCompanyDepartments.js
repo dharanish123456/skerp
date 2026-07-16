@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { API_BASE_URL } from '../config/api';
+import api from '../config/api';
 
 export const useCompanyDepartments = (initialCompanyId = '', initialDepartmentId = '') => {
   const [companies, setCompanies] = useState([]);
@@ -12,17 +12,12 @@ export const useCompanyDepartments = (initialCompanyId = '', initialDepartmentId
     const fetchData = async () => {
       try {
         const [compRes, deptRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/companies`),
-          fetch(`${API_BASE_URL}/departments`)
+          api.get('/companies'),
+          api.get('/departments')
         ]);
         
-        if (compRes.ok && deptRes.ok) {
-          const compData = await compRes.json();
-          const deptData = await deptRes.json();
-          
-          setCompanies(compData.filter(c => c.status === 'Active'));
-          setAllDepartments(deptData.filter(d => d.status === 'Active'));
-        }
+        setCompanies(compRes.data.filter(c => c.status === 'Active'));
+        setAllDepartments(deptRes.data.filter(d => d.status === 'Active'));
       } catch (error) {
         console.error('Error fetching company/department data:', error);
       }

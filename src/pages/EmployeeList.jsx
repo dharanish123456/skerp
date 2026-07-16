@@ -14,8 +14,8 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
-import { API_BASE_URL } from '../config/api';
-
+import api from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 // ── Column definitions ─────────────────────────────────────
 const ALL_COLUMNS = [
@@ -77,6 +77,10 @@ const exportToCSV = (rows, visibleCols) => {
 
 // ── Component ──────────────────────────────────────────────
 const EmployeeList = ({ onAddClick, onEditClick }) => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('CREATE_EMPLOYEES');
+  const canEdit = hasPermission('EDIT_EMPLOYEES');
+  const canDelete = hasPermission('DELETE_EMPLOYEES');
   const [employees, setEmployees] = useState([]);
   const [search, setSearch]           = useState('');
   const [order, setOrder]             = useState('asc');
@@ -90,13 +94,8 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees`);
-      if (response.ok) {
-        const data = await response.json();
-        setEmployees(data);
-      } else {
-        console.error('Failed to fetch employees');
-      }
+      const response = await api.get('/employees');
+      setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
     }
@@ -104,14 +103,8 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
 
   const handleDeleteEmployee = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setEmployees(prev => prev.filter(emp => emp.id !== id));
-      } else {
-        console.error('Failed to delete employee');
-      }
+      await api.delete(`/employees/${id}`);
+      setEmployees(prev => prev.filter(emp => emp.id !== id));
     } catch (error) {
       console.error('Error deleting employee:', error);
     }
@@ -175,7 +168,7 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
             {filtered.length} employees found
           </Typography>
         </Box>
-        {onAddClick && (
+        {canCreate && onAddClick && (
           <Button
             variant="contained"
             size="small"
@@ -185,14 +178,14 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
               backgroundColor: '#6366f1',
               color: '#ffffff',
               fontSize: '0.8125rem',
+              fontWeight: 600,
               textTransform: 'none',
-              boxShadow: 'none',
-              px: 2.5,
-              py: 1,
               borderRadius: '8px',
+              px: 2,
+              py: 0.75,
+              boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)',
               '&:hover': {
                 backgroundColor: '#4f46e5',
-                boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
               },
             }}
           >
@@ -212,12 +205,14 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
             placeholder="Search by name, department, role…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1rem', color: '#64748b' }} />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: '1rem', color: '#64748b' }} />
+                  </InputAdornment>
+                ),
+              },
             }}
             sx={{
               width: { xs: '100%', sm: 320 },
@@ -397,16 +392,16 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
                       if (col.id === 'actions') return (
                         <TableCell key={col.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <Tooltip title="Edit">
+                            {canEdit && <Tooltip title="Edit">
                               <IconButton onClick={() => onEditClick && onEditClick(emp)} size="small" sx={{ color: '#6366f1', '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.08)' } }}>
                                 <EditIcon sx={{ fontSize: '1rem' }} />
                               </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
+                            </Tooltip>}
+                            {canDelete && <Tooltip title="Delete">
                               <IconButton size="small" onClick={() => handleDeleteEmployee(emp.id)} sx={{ color: '#f87171', '&:hover': { backgroundColor: 'rgba(248, 113, 113, 0.08)' } }}>
                                 <DeleteIcon sx={{ fontSize: '1rem' }} />
                               </IconButton>
-                            </Tooltip>
+                            </Tooltip>}
                           </Box>
                         </TableCell>
                       );

@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.Company;
 import com.skerp.skerp_backend.service.CompanyService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +22,13 @@ public class CompanyController {
     }
 
     @GetMapping
+    @RequirePermission({"VIEW_COMPANIES", "VIEW_DEPARTMENTS", "VIEW_EMPLOYEES"})
     public ResponseEntity<List<Company>> getAllCompanies() {
         return ResponseEntity.ok(companyService.getAllCompanies());
     }
 
     @PostMapping
+    @RequirePermission("CREATE_COMPANIES")
     public ResponseEntity<?> createCompany(@RequestBody Map<String, String> request) {
         try {
             String name = request.get("name");
@@ -37,6 +40,7 @@ public class CompanyController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_COMPANIES")
     public ResponseEntity<?> deleteCompany(@PathVariable Long id) {
         try {
             companyService.deleteCompany(id);
@@ -47,6 +51,7 @@ public class CompanyController {
     }
 
     @PatchMapping("/{id}/toggle-status")
+    @RequirePermission("EDIT_COMPANIES")
     public ResponseEntity<?> toggleCompanyStatus(@PathVariable Long id) {
         try {
             Company company = companyService.toggleCompanyStatus(id);
@@ -57,6 +62,7 @@ public class CompanyController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("EDIT_COMPANIES")
     public ResponseEntity<?> updateCompany(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
             String name = request.get("name");

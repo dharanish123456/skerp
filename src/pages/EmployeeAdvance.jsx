@@ -49,6 +49,7 @@ import {
   fetchAdvanceSummary,
   fetchEmployees,
 } from '../services/employeeAdvanceService';
+import { useAuth } from '../context/AuthContext';
 
 const COLUMNS = [
   { id: 'id', label: 'Advance ID', sortable: true },
@@ -83,6 +84,10 @@ const dateFieldSx = {
 };
 
 const EmployeeAdvance = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('CREATE_ADVANCES');
+  const canEdit = hasPermission('EDIT_ADVANCES');
+  const canDelete = hasPermission('DELETE_ADVANCES');
   // Master lists
   const [advances, setAdvances] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -347,7 +352,7 @@ const EmployeeAdvance = () => {
               Track and store advances issued to employees
             </Typography>
           </Box>
-          <Button
+          {canCreate && <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenAddAdvance}
@@ -361,7 +366,7 @@ const EmployeeAdvance = () => {
             }}
           >
             New Advance
-          </Button>
+          </Button>}
         </Box>
 
         {/* Filter Controls */}
@@ -466,16 +471,16 @@ const EmployeeAdvance = () => {
                     </TableCell>
                     <TableCell>
                       <Box display="flex">
-                        <Tooltip title="Edit Advance">
+                        {canEdit && <Tooltip title="Edit Advance">
                           <IconButton size="small" color="secondary" onClick={() => handleOpenEditAdvance(row)}>
                             <EditIcon fontSize="inherit" />
                           </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Advance">
+                        </Tooltip>}
+                        {canDelete && <Tooltip title="Delete Advance">
                           <IconButton size="small" color="error" onClick={() => handleDeleteAdvance(row.id)}>
                             <DeleteIcon fontSize="inherit" />
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip>}
                       </Box>
                     </TableCell>
                   </TableRow>

@@ -2,6 +2,7 @@ package com.skerp.skerp_backend.controller;
 
 import com.skerp.skerp_backend.entity.Department;
 import com.skerp.skerp_backend.service.DepartmentService;
+import com.skerp.skerp_backend.security.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +22,13 @@ public class DepartmentController {
     }
 
     @GetMapping
+    @RequirePermission({"VIEW_DEPARTMENTS", "VIEW_EMPLOYEES"})
     public ResponseEntity<List<Department>> getAllDepartments() {
         return ResponseEntity.ok(departmentService.getAllDepartments());
     }
 
     @PostMapping
+    @RequirePermission("CREATE_DEPARTMENTS")
     public ResponseEntity<?> createDepartment(@RequestBody Map<String, Object> request) {
         try {
             String name = (String) request.get("name");
@@ -41,6 +44,7 @@ public class DepartmentController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("DELETE_DEPARTMENTS")
     public ResponseEntity<?> deleteDepartment(@PathVariable Long id) {
         try {
             departmentService.deleteDepartment(id);
@@ -51,6 +55,7 @@ public class DepartmentController {
     }
 
     @PatchMapping("/{id}/toggle-status")
+    @RequirePermission("EDIT_DEPARTMENTS")
     public ResponseEntity<?> toggleDepartmentStatus(@PathVariable Long id) {
         try {
             Department department = departmentService.toggleDepartmentStatus(id);
@@ -61,6 +66,7 @@ public class DepartmentController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("EDIT_DEPARTMENTS")
     public ResponseEntity<?> updateDepartment(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         try {
             String name = (String) request.get("name");
