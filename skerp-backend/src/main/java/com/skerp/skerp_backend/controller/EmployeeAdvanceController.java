@@ -60,6 +60,28 @@ public class EmployeeAdvanceController {
         }
     }
 
+    @PutMapping("/{id}/approve")
+    @RequirePermission("APPROVE_ADVANCES")
+    public ResponseEntity<?> approveAdvance(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        try {
+            EmployeeAdvance advance = service.approveAdvance(id, payload);
+            return ResponseEntity.ok(advance);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/reject")
+    @RequirePermission("APPROVE_ADVANCES")
+    public ResponseEntity<?> rejectAdvance(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        try {
+            EmployeeAdvance advance = service.rejectAdvance(id, payload);
+            return ResponseEntity.ok(advance);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{id}")
     @RequirePermission("DELETE_ADVANCES")
     public ResponseEntity<?> deleteAdvance(@PathVariable Long id) {

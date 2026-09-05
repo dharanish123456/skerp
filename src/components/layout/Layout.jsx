@@ -3,10 +3,15 @@ import Sidebar from '../sidebar/Sidebar'
 import TopBar from '../topbar/TopBar'
 import EmployeeList from '../../pages/EmployeeList'
 import AddEmployee from '../../pages/AddEmployee'
+import EmployeeView from '../../pages/EmployeeView'
+import MyProfile from '../../pages/MyProfile'
 import Company from '../../pages/Company'
 import Department from '../../pages/Department'
 import Expenses from '../../pages/Expenses'
 import EmployeeAdvance from '../../pages/EmployeeAdvance'
+import EmployeeAdvanceRequest from '../../pages/EmployeeAdvanceRequest'
+import Attendance from '../../pages/Attendance'
+import MyAttendance from '../../pages/MyAttendance'
 import RoleManagement from '../../pages/RoleManagement'
 import RolePermissionEditor from '../../pages/RolePermissionEditor'
 import { useAuth } from '../../context/AuthContext'
@@ -18,6 +23,7 @@ const Layout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState("employee-list")
   const [editingEmployee, setEditingEmployee] = useState(null)
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [selectedRole, setSelectedRole] = useState(null)
   const [permissionEditorDirty, setPermissionEditorDirty] = useState(false)
   const handleToggle = () => setIsCollapsed(p => !p)
@@ -32,6 +38,9 @@ const Layout = () => {
       setSelectedRole(null)
       setPermissionEditorDirty(false)
     }
+    if (page !== 'view-employee') {
+      setSelectedEmployee(null)
+    }
     setCurrentPage(page === 'expenses' ? 'expenses-daily' : page)
   }
 
@@ -39,6 +48,7 @@ const Layout = () => {
     'dashboard-overview': 'VIEW_DASHBOARD',
     'dashboard-analytics': 'VIEW_DASHBOARD',
     'employee-list': 'VIEW_EMPLOYEES',
+    'view-employee': 'VIEW_EMPLOYEES',
     company: 'VIEW_COMPANIES',
     departments: 'VIEW_DEPARTMENTS',
     'expenses-daily': 'VIEW_EXPENSES',
@@ -46,6 +56,9 @@ const Layout = () => {
     'employee-advance': 'VIEW_ADVANCES',
     'roles-permissions': 'VIEW_ROLES',
     'role-permission-editor': 'EDIT_ROLES',
+    'my-advances': 'VIEW_OWN_ADVANCES',
+    attendance: 'VIEW_ATTENDANCE',
+    'my-attendance': 'VIEW_OWN_ATTENDANCE',
   }
 
   const requiredPermission = currentPage === 'add-employee'
@@ -62,11 +75,15 @@ const Layout = () => {
       ['departments', 'VIEW_DEPARTMENTS'],
       ['expenses-daily', 'VIEW_EXPENSES'],
       ['employee-advance', 'VIEW_ADVANCES'],
+      ['attendance', 'VIEW_ATTENDANCE'],
       ['roles-permissions', 'VIEW_ROLES'],
+      ['my-advances', 'VIEW_OWN_ADVANCES'],
+      ...(user?.employeeId ? [['my-attendance', 'VIEW_OWN_ATTENDANCE']] : []),
     ].find(([, permission]) => hasPermission(permission))?.[0];
     if (firstAllowedPage) {
       const redirectTimer = window.setTimeout(() => {
         setEditingEmployee(null);
+        setSelectedEmployee(null);
         setSelectedRole(null);
         setCurrentPage(firstAllowedPage);
       }, 0);
@@ -83,8 +100,18 @@ const Layout = () => {
         }
       case 'add-employee':
         return {
-          title: 'Add Employee',
-          breadcrumb: 'Home / HR Management / Add Employee',
+          title: editingEmployee?.id ? 'Edit Employee' : 'Add Employee',
+          breadcrumb: `Home / HR Management / ${editingEmployee?.id ? 'Edit Employee' : 'Add Employee'}`,
+        }
+      case 'view-employee':
+        return {
+          title: 'Employee Profile',
+          breadcrumb: `Home / HR Management / Employee List / ${selectedEmployee?.name || 'Employee'}`,
+        }
+      case 'my-profile':
+        return {
+          title: 'My Profile',
+          breadcrumb: 'Home / Account / My Profile',
         }
       case 'dashboard-overview':
         return {
@@ -116,6 +143,21 @@ const Layout = () => {
         return {
           title: 'Employee Advance Tracker',
           breadcrumb: 'Home / Expenses / Employee Advance',
+        }
+      case 'my-advances':
+        return {
+          title: 'My Advances',
+          breadcrumb: 'Home / Self Service / My Advances',
+        }
+      case 'attendance':
+        return {
+          title: 'Attendance',
+          breadcrumb: 'Home / HR Management / Attendance',
+        }
+      case 'my-attendance':
+        return {
+          title: 'My Attendance',
+          breadcrumb: 'Home / Self Service / My Attendance',
         }
       case 'roles-permissions':
         return {
@@ -151,6 +193,11 @@ const Layout = () => {
         isCollapsed={isCollapsed}
         onToggle={handleToggle}
         onMobileToggle={handleMobileSidebarToggle}
+        onProfileClick={() => {
+          setEditingEmployee(null)
+          setSelectedEmployee(null)
+          setCurrentPage('my-profile')
+        }}
         pageTitle={title}
         breadcrumb={breadcrumb}
       />
@@ -169,9 +216,31 @@ const Layout = () => {
             onEditClick={(emp) => {
               if (!hasPermission('EDIT_EMPLOYEES')) return;
               setEditingEmployee(emp);
+              setSelectedEmployee(null);
               setCurrentPage('add-employee');
             }}
+            onViewClick={(emp) => {
+              setSelectedEmployee(emp);
+              setCurrentPage('view-employee');
+            }}
           />
+        )}
+        {canAccessCurrentPage && currentPage === 'view-employee' && selectedEmployee && (
+          <EmployeeView
+            employee={selectedEmployee}
+            onBack={() => {
+              setSelectedEmployee(null);
+              setCurrentPage('employee-list');
+            }}
+            onEdit={hasPermission('EDIT_EMPLOYEES') ? (emp) => {
+              setEditingEmployee(emp);
+              setSelectedEmployee(null);
+              setCurrentPage('add-employee');
+            } : null}
+          />
+        )}
+        {canAccessCurrentPage && currentPage === 'my-profile' && (
+          <MyProfile />
         )}
         {canAccessCurrentPage && currentPage === 'add-employee' && (
           <AddEmployee
@@ -197,6 +266,15 @@ const Layout = () => {
         )}
         {canAccessCurrentPage && currentPage === 'employee-advance' && (
           <EmployeeAdvance />
+        )}
+        {canAccessCurrentPage && currentPage === 'my-advances' && (
+          <EmployeeAdvanceRequest />
+        )}
+        {canAccessCurrentPage && currentPage === 'attendance' && (
+          <Attendance />
+        )}
+        {canAccessCurrentPage && currentPage === 'my-attendance' && user?.employeeId && (
+          <MyAttendance />
         )}
         {canAccessCurrentPage && currentPage === 'roles-permissions' && (
           <RoleManagement
@@ -224,11 +302,16 @@ const Layout = () => {
         )}
         {currentPage !== 'employee-list' &&
          currentPage !== 'add-employee' &&
+         currentPage !== 'view-employee' &&
+         currentPage !== 'my-profile' &&
          currentPage !== 'company' &&
          currentPage !== 'departments' &&
          currentPage !== 'expenses' &&
          currentPage !== 'expenses-daily' &&
          currentPage !== 'employee-advance' &&
+         currentPage !== 'my-advances' &&
+         currentPage !== 'attendance' &&
+         currentPage !== 'my-attendance' &&
          currentPage !== 'roles-permissions' &&
          currentPage !== 'role-permission-editor' &&
          canAccessCurrentPage && (

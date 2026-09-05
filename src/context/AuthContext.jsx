@@ -79,12 +79,16 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (permission) => {
     if (!user || !user.permissions) return false;
-    return user.roles.includes('SUPER_ADMIN') || user.permissions.includes(permission);
+    return user.permissions.includes(permission);
   };
 
   const hasRole = (role) => {
     if (!user || !user.roles) return false;
     return user.roles.includes(role);
+  };
+
+  const updateCurrentUser = (updates) => {
+    setUser((currentUser) => currentUser ? { ...currentUser, ...updates } : currentUser);
   };
 
   return (
@@ -95,6 +99,8 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         login,
         logout,
+        refreshUser: checkAuthStatus,
+        updateCurrentUser,
         hasPermission,
         hasRole,
       }}

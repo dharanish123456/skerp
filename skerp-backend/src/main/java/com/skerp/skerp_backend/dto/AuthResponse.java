@@ -7,5 +7,6 @@ public record AuthResponse(
     String username,
     String fullName,
     List<String> roles,
-    List<String> permissions
+    List<String> permissions,
+    Long employeeId
 ) {}

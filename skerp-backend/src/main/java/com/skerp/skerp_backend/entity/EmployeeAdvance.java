@@ -44,6 +44,13 @@ public class EmployeeAdvance {
     private String notes;
 
     @Builder.Default
+    @Column(name = "status")
+    private String status = "APPROVED";
+
+    @Column(name = "admin_notes", columnDefinition = "TEXT")
+    private String adminNotes;
+
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

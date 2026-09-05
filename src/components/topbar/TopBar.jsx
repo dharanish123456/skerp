@@ -100,6 +100,7 @@ const sx = {
       borderColor: "#6366f1",
     },
     ml: "auto",
+    flexShrink: 0,
   },
 
   searchIcon: {
@@ -205,6 +206,7 @@ const TopBar = ({
   isCollapsed = false,
   onToggle,
   onMobileToggle,
+  onProfileClick,
   pageTitle = "Dashboard",
   breadcrumb = "Home / Dashboard",
 }) => {
@@ -395,7 +397,10 @@ const TopBar = ({
 
           <MenuItem
             sx={sx.profileMenuItem}
-            onClick={() => setProfileAnchor(null)}
+            onClick={() => {
+              setProfileAnchor(null);
+              onProfileClick?.();
+            }}
           >
             <iconify-icon icon="ri:user-3-line" />
             My Profile

@@ -177,9 +177,9 @@ const RoleManagement = ({ onManagePermissions }) => {
                     <TableCell>
                       {locked ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: '#94a3b8' }}>
-                          <LockIcon fontSize="small" /> System Locked
+                          <LockIcon fontSize="small" /> Protected Role
                           {canEdit && (
-                            <Tooltip title="View permissions">
+                            <Tooltip title="Manage permissions">
                               <IconButton size="small" color="primary" onClick={() => onManagePermissions(role)}>
                                 <PermissionsIcon fontSize="small" />
                               </IconButton>

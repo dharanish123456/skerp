@@ -12,7 +12,10 @@ public final class PermissionCatalog {
         "DEPARTMENTS", "Departments",
         "EXPENSES", "Expenses",
         "ADVANCES", "Employee Advances",
-        "ROLES", "Roles & Permissions"
+        "ROLES", "Roles & Permissions",
+        "OWN_ADVANCES", "My Advances",
+        "ATTENDANCE", "Attendance",
+        "OWN_ATTENDANCE", "My Attendance"
     );
 
     private static final Set<String> ACTIONS = Set.of("VIEW", "CREATE", "EDIT", "DELETE");

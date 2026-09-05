@@ -120,9 +120,7 @@ public class RoleController {
         }
 
         Role role = roleOpt.get();
-        if ("SUPER_ADMIN".equalsIgnoreCase(role.getName())) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Cannot modify SUPER_ADMIN permissions"));
-        }
+        boolean isSuperAdmin = "SUPER_ADMIN".equalsIgnoreCase(role.getName());
 
         List<Long> requestedIds = request.permissionIds() != null
             ? request.permissionIds()
@@ -136,6 +134,13 @@ public class RoleController {
             .filter(permission -> PermissionCatalog.isManaged(permission.getName()))
             .map(Permission::getName)
             .collect(java.util.stream.Collectors.toSet());
+
+        if (isSuperAdmin && (!selectedNames.contains("VIEW_ROLES") || !selectedNames.contains("EDIT_ROLES"))) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message",
+                "SUPER_ADMIN must retain VIEW_ROLES and EDIT_ROLES permissions"
+            ));
+        }
 
         Optional<String> actionWithoutView = selectedNames.stream()
             .filter(name -> !"VIEW".equals(PermissionCatalog.action(name)))

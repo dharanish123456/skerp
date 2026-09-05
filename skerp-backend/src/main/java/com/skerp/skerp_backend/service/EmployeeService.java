@@ -3,12 +3,18 @@ package com.skerp.skerp_backend.service;
 import com.skerp.skerp_backend.entity.Company;
 import com.skerp.skerp_backend.entity.Department;
 import com.skerp.skerp_backend.entity.Employee;
+import com.skerp.skerp_backend.entity.Role;
+import com.skerp.skerp_backend.entity.User;
 import com.skerp.skerp_backend.repo.CompanyRepository;
 import com.skerp.skerp_backend.repo.DepartmentRepository;
 import com.skerp.skerp_backend.repo.EmployeeRepository;
+import com.skerp.skerp_backend.repo.UserRepository;
+import com.skerp.skerp_backend.repo.RoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -18,8 +24,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -28,6 +36,9 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.upload.dir:uploads/employee-proofs}")
     private String uploadDir;
@@ -35,14 +46,40 @@ public class EmployeeService {
     @Autowired
     public EmployeeService(EmployeeRepository employeeRepository,
                            CompanyRepository companyRepository,
-                           DepartmentRepository departmentRepository) {
+                           DepartmentRepository departmentRepository,
+                           UserRepository userRepository,
+                           RoleRepository roleRepository,
+                           PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public void populateUserFields(Employee employee) {
+        if (employee.getUserId() != null) {
+            userRepository.findById(employee.getUserId()).ifPresentOrElse(user -> {
+                employee.setHasUserAccount(true);
+                employee.setLoginUsername(user.getUsername());
+                if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                    Role role = user.getRoles().iterator().next();
+                    employee.setLoginRoleId(role.getId());
+                    employee.setLoginRoleName(role.getName());
+                }
+            }, () -> {
+                employee.setHasUserAccount(false);
+            });
+        } else {
+            employee.setHasUserAccount(false);
+        }
     }
 
     public List<Employee> getAllEmployees() {
-        return employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll();
+        employees.forEach(this::populateUserFields);
+        return employees;
     }
 
     /**
@@ -101,6 +138,7 @@ public class EmployeeService {
         employee.setBankName(req.getOrDefault("bankName", ""));
     }
 
+    @Transactional
     public Employee createEmployee(Map<String, String> req,
                                    MultipartFile aadhaarProofFile,
                                    MultipartFile panProofFile,
@@ -117,13 +155,56 @@ public class EmployeeService {
         if (panPath != null) employee.setPanProof(panPath);
         if (insurancePath != null) employee.setInsuranceProof(insurancePath);
 
-        return employeeRepository.save(employee);
+        // Handle optional login account creation
+        if ("true".equals(req.get("createUser"))) {
+            String username = req.get("loginUsername");
+            String password = req.get("loginPassword");
+            String roleIdStr = req.get("loginRoleId");
+
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("Username is required for login account");
+            }
+            if (userRepository.existsByUsername(username)) {
+                throw new IllegalArgumentException("Username '" + username + "' is already taken");
+            }
+            if (password == null || password.isBlank()) {
+                throw new IllegalArgumentException("Password is required for login account");
+            }
+            if (roleIdStr == null || roleIdStr.isBlank()) {
+                throw new IllegalArgumentException("Role is required for login account");
+            }
+
+            Long roleId = Long.parseLong(roleIdStr);
+            Role role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found with id: " + roleId));
+
+            Set<Role> roles = new HashSet<>();
+            roles.add(role);
+
+            User user = User.builder()
+                    .username(username)
+                    .password(passwordEncoder.encode(password))
+                    .email(employee.getEmail())
+                    .fullName(employee.getName())
+                    .enabled(true)
+                    .companyId(employee.getCompany().getId())
+                    .roles(roles)
+                    .build();
+
+            user = userRepository.save(user);
+            employee.setUserId(user.getId());
+        }
+
+        Employee saved = employeeRepository.save(employee);
+        populateUserFields(saved);
+        return saved;
     }
 
     public void deleteEmployee(Long id) {
         employeeRepository.deleteById(id);
     }
 
+    @Transactional
     public Employee updateEmployee(Long id, Map<String, String> req,
                                    MultipartFile aadhaarProofFile,
                                    MultipartFile panProofFile,
@@ -142,7 +223,83 @@ public class EmployeeService {
         if (panPath != null) employee.setPanProof(panPath);
         if (insurancePath != null) employee.setInsuranceProof(insurancePath);
 
-        return employeeRepository.save(employee);
+        // Handle user credentials update or creation
+        if (employee.getUserId() != null) {
+            User user = userRepository.findById(employee.getUserId()).orElse(null);
+            if (user != null) {
+                String newUsername = req.get("loginUsername");
+                String newPassword = req.get("loginPassword");
+                String roleIdStr = req.get("loginRoleId");
+
+                if (newUsername != null && !newUsername.isBlank() && !newUsername.equals(user.getUsername())) {
+                    if (userRepository.existsByUsername(newUsername)) {
+                        throw new IllegalArgumentException("Username '" + newUsername + "' is already taken");
+                    }
+                    user.setUsername(newUsername);
+                }
+
+                if (newPassword != null && !newPassword.isBlank()) {
+                    if (newPassword.length() < 4) {
+                        throw new IllegalArgumentException("Password must be at least 4 characters");
+                    }
+                    user.setPassword(passwordEncoder.encode(newPassword));
+                }
+
+                if (roleIdStr != null && !roleIdStr.isBlank()) {
+                    Long roleId = Long.parseLong(roleIdStr);
+                    Role role = roleRepository.findById(roleId)
+                            .orElseThrow(() -> new IllegalArgumentException("Role not found with id: " + roleId));
+                    Set<Role> roles = new HashSet<>();
+                    roles.add(role);
+                    user.setRoles(roles);
+                }
+
+                user.setEmail(employee.getEmail());
+                user.setFullName(employee.getName());
+                userRepository.save(user);
+            }
+        } else if ("true".equals(req.get("createUser"))) {
+            String username = req.get("loginUsername");
+            String password = req.get("loginPassword");
+            String roleIdStr = req.get("loginRoleId");
+
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("Username is required for login account");
+            }
+            if (userRepository.existsByUsername(username)) {
+                throw new IllegalArgumentException("Username '" + username + "' is already taken");
+            }
+            if (password == null || password.isBlank()) {
+                throw new IllegalArgumentException("Password is required for login account");
+            }
+            if (roleIdStr == null || roleIdStr.isBlank()) {
+                throw new IllegalArgumentException("Role is required for login account");
+            }
+
+            Long roleId = Long.parseLong(roleIdStr);
+            Role role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found with id: " + roleId));
+
+            Set<Role> roles = new HashSet<>();
+            roles.add(role);
+
+            User user = User.builder()
+                    .username(username)
+                    .password(passwordEncoder.encode(password))
+                    .email(employee.getEmail())
+                    .fullName(employee.getName())
+                    .enabled(true)
+                    .companyId(employee.getCompany().getId())
+                    .roles(roles)
+                    .build();
+
+            user = userRepository.save(user);
+            employee.setUserId(user.getId());
+        }
+
+        Employee saved = employeeRepository.save(employee);
+        populateUserFields(saved);
+        return saved;
     }
 
     public org.springframework.core.io.Resource loadProofFile(String filename) {

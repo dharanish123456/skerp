@@ -1,0 +1,34 @@
+.shine-border {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: var(--shine-border-width, 2px);
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--shine-gradient);
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  animation: shine-border-sweep var(--shine-duration, 8s) linear infinite;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+@keyframes shine-border-sweep {
+  0% {
+    background-position: 150% 150%;
+  }
+
+  100% {
+    background-position: -50% -50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shine-border {
+    animation: none;
+    background-position: center;
+  }
+}

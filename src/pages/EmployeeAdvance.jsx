@@ -28,6 +28,10 @@ import {
   InputLabel,
   Avatar,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -40,6 +44,8 @@ import {
   Close as CloseIcon,
   Person as PersonIcon,
   AttachMoney as MoneyIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as RejectIcon,
 } from '@mui/icons-material';
 import {
   fetchEmployeeAdvances,
@@ -48,6 +54,8 @@ import {
   deleteEmployeeAdvance,
   fetchAdvanceSummary,
   fetchEmployees,
+  approveAdvance,
+  rejectAdvance,
 } from '../services/employeeAdvanceService';
 import { useAuth } from '../context/AuthContext';
 
@@ -56,6 +64,7 @@ const COLUMNS = [
   { id: 'employeeName', label: 'Employee', sortable: true },
   { id: 'advanceDate', label: 'Advance Date', sortable: true },
   { id: 'amount', label: 'Amount', sortable: true },
+  { id: 'status', label: 'Status', sortable: true },
   { id: 'paymentMode', label: 'Payment Mode', sortable: true },
   { id: 'reason', label: 'Reason', sortable: true },
   { id: 'notes', label: 'Notes', sortable: true },
@@ -88,6 +97,7 @@ const EmployeeAdvance = () => {
   const canCreate = hasPermission('CREATE_ADVANCES');
   const canEdit = hasPermission('EDIT_ADVANCES');
   const canDelete = hasPermission('DELETE_ADVANCES');
+  const canApprove = hasPermission('APPROVE_ADVANCES') || hasPermission('EDIT_ADVANCES');
   // Master lists
   const [advances, setAdvances] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -111,6 +121,15 @@ const EmployeeAdvance = () => {
 
   // Drawer state
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+
+  // Approve / Reject Dialog states
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [targetAdvance, setTargetAdvance] = useState(null);
+  const [approvePaymentMode, setApprovePaymentMode] = useState('Cash');
+  const [approveReferenceNo, setApproveReferenceNo] = useState('');
+  const [approveAdminNotes, setApproveAdminNotes] = useState('');
+  const [rejectAdminNotes, setRejectAdminNotes] = useState('');
 
   // Form states - Advance
   const [editingAdvanceId, setEditingAdvanceId] = useState(null);
@@ -281,6 +300,74 @@ const EmployeeAdvance = () => {
         showToast(error.message, 'error');
       }
     }
+  };
+
+  const handleOpenApprove = (adv) => {
+    setTargetAdvance(adv);
+    setApprovePaymentMode('Cash');
+    setApproveReferenceNo('');
+    setApproveAdminNotes('');
+    setValidationError('');
+    setApproveDialogOpen(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!targetAdvance) return;
+    try {
+      await approveAdvance(targetAdvance.id, {
+        paymentMode: approvePaymentMode,
+        referenceNo: approveReferenceNo,
+        adminNotes: approveAdminNotes,
+      });
+      showToast(`Advance #${targetAdvance.id} approved successfully!`);
+      setApproveDialogOpen(false);
+      loadData();
+    } catch (error) {
+      setValidationError(error.message);
+    }
+  };
+
+  const handleOpenReject = (adv) => {
+    setTargetAdvance(adv);
+    setRejectAdminNotes('');
+    setValidationError('');
+    setRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!targetAdvance) return;
+    if (!rejectAdminNotes.trim()) {
+      setValidationError('Please provide a reason / note for rejection.');
+      return;
+    }
+    try {
+      await rejectAdvance(targetAdvance.id, {
+        adminNotes: rejectAdminNotes,
+      });
+      showToast(`Advance #${targetAdvance.id} rejected.`, 'info');
+      setRejectDialogOpen(false);
+      loadData();
+    } catch (error) {
+      setValidationError(error.message);
+    }
+  };
+
+  const getStatusChip = (row) => {
+    const status = row.status || (row.paymentMode === 'Pending Approval' ? 'PENDING' : 'APPROVED');
+    if (status === 'PENDING') {
+      return <Chip label="Pending" size="small" sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600, fontSize: '0.75rem' }} />;
+    }
+    if (status === 'REJECTED') {
+      return (
+        <Tooltip title={row.adminNotes ? `Reason: ${row.adminNotes}` : 'Rejected'}>
+          <Chip label="Rejected" size="small" sx={{ bgcolor: '#fee2e2', color: '#991b1b', fontWeight: 600, fontSize: '0.75rem' }} />
+        </Tooltip>
+      );
+    }
+    if (status === 'CANCELLED') {
+      return <Chip label="Cancelled" size="small" sx={{ bgcolor: '#f3f4f6', color: '#4b5563', fontWeight: 600, fontSize: '0.75rem' }} />;
+    }
+    return <Chip label="Approved" size="small" sx={{ bgcolor: '#d1fae5', color: '#065f46', fontWeight: 600, fontSize: '0.75rem' }} />;
   };
 
   const handleClearFilters = () => {
@@ -464,13 +551,28 @@ const EmployeeAdvance = () => {
                     <TableCell sx={{ fontWeight: 'bold', color: '#1e293b' }}>
                       {formatCurrency(row.amount)}
                     </TableCell>
+                    <TableCell>{getStatusChip(row)}</TableCell>
                     <TableCell>{row.paymentMode || '—'}</TableCell>
                     <TableCell color="text.secondary">{row.reason || '—'}</TableCell>
                     <TableCell color="text.secondary" sx={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {row.notes || '—'}
+                      {row.notes || row.adminNotes || '—'}
                     </TableCell>
                     <TableCell>
-                      <Box display="flex">
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        {(row.status === 'PENDING' || row.paymentMode === 'Pending Approval') && canApprove && (
+                          <>
+                            <Tooltip title="Approve Request">
+                              <IconButton size="small" sx={{ color: '#16a34a' }} onClick={() => handleOpenApprove(row)}>
+                                <ApproveIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Reject Request">
+                              <IconButton size="small" sx={{ color: '#dc2626' }} onClick={() => handleOpenReject(row)}>
+                                <RejectIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                         {canEdit && <Tooltip title="Edit Advance">
                           <IconButton size="small" color="secondary" onClick={() => handleOpenEditAdvance(row)}>
                             <EditIcon fontSize="inherit" />
@@ -753,6 +855,95 @@ const EmployeeAdvance = () => {
           </Button>
         </Box>
       </Drawer>
+
+      {/* ── APPROVE ADVANCE DIALOG ────────────────────────────────────── */}
+      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Approve Advance Request #{targetAdvance?.id}
+        </DialogTitle>
+        <DialogContent dividers>
+          {validationError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{validationError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <Typography variant="body2" color="textSecondary">
+              Employee: <strong>{targetAdvance?.employeeName}</strong> — Amount: <strong>{formatCurrency(targetAdvance?.amount)}</strong>
+            </Typography>
+            {targetAdvance?.reason && (
+              <Typography variant="caption" color="textSecondary" sx={{ bgcolor: '#f8fafc', p: 1, borderRadius: 1 }}>
+                Reason: {targetAdvance.reason}
+              </Typography>
+            )}
+            <FormControl fullWidth size="small">
+              <InputLabel>Payment Mode *</InputLabel>
+              <Select
+                value={approvePaymentMode}
+                label="Payment Mode *"
+                onChange={(e) => setApprovePaymentMode(e.target.value)}
+              >
+                <MenuItem value="Cash">💵 Cash</MenuItem>
+                <MenuItem value="Bank Transfer">🏦 Bank Transfer</MenuItem>
+                <MenuItem value="UPI">📱 UPI</MenuItem>
+                <MenuItem value="Cheque">📄 Cheque</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Reference No"
+              size="small"
+              fullWidth
+              value={approveReferenceNo}
+              onChange={(e) => setApproveReferenceNo(e.target.value)}
+              placeholder="UTR / Cheque no."
+            />
+            <TextField
+              label="Admin Notes"
+              size="small"
+              multiline
+              rows={2}
+              fullWidth
+              value={approveAdminNotes}
+              onChange={(e) => setApproveAdminNotes(e.target.value)}
+              placeholder="Optional notes for approval..."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setApproveDialogOpen(false)} variant="outlined" sx={{ borderRadius: 2 }}>Cancel</Button>
+          <Button onClick={handleConfirmApprove} variant="contained" sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, borderRadius: 2 }}>
+            Approve Advance
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── REJECT ADVANCE DIALOG ─────────────────────────────────────── */}
+      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1, color: '#dc2626' }}>
+          Reject Advance Request #{targetAdvance?.id}
+        </DialogTitle>
+        <DialogContent dividers>
+          {validationError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{validationError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <Typography variant="body2" color="textSecondary">
+              Employee: <strong>{targetAdvance?.employeeName}</strong> — Amount: <strong>{formatCurrency(targetAdvance?.amount)}</strong>
+            </Typography>
+            <TextField
+              label="Rejection Reason / Notes *"
+              size="small"
+              multiline
+              rows={3}
+              required
+              fullWidth
+              value={rejectAdminNotes}
+              onChange={(e) => { setRejectAdminNotes(e.target.value); setValidationError(''); }}
+              placeholder="Provide reason for rejecting this advance request..."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setRejectDialogOpen(false)} variant="outlined" sx={{ borderRadius: 2 }}>Cancel</Button>
+          <Button onClick={handleConfirmReject} variant="contained" color="error" sx={{ borderRadius: 2 }}>
+            Reject Request
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={toastOpen} autoHideDuration={4000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={toastSeverity} onClose={() => setToastOpen(false)} sx={{ borderRadius: '6px' }}>{toastMsg}</Alert>

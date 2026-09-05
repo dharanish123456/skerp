@@ -1,0 +1,13 @@
+.shiny-text {
+  display: inline-block;
+  animation: shiny-sweep linear infinite;
+}
+
+@keyframes shiny-sweep {
+  0% {
+    background-position: 150% center;
+  }
+  100% {
+    background-position: -50% center;
+  }
+}

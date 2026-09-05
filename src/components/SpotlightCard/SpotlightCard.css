@@ -1,0 +1,41 @@
+.spotlight-card {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  --spotlight-color: rgba(99, 102, 241, 0.14);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.spotlight-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: '';
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    360px circle at var(--spotlight-x) var(--spotlight-y),
+    var(--spotlight-color),
+    transparent 70%
+  );
+  transition: opacity 220ms ease;
+}
+
+.spotlight-card:hover::before,
+.spotlight-card:focus-within::before {
+  opacity: 1;
+}
+
+.spotlight-card__content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .spotlight-card::before {
+    display: none;
+  }
+}

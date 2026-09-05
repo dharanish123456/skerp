@@ -5,6 +5,7 @@ import com.skerp.skerp_backend.dto.LoginRequest;
 import com.skerp.skerp_backend.dto.UserInfoResponse;
 import com.skerp.skerp_backend.entity.User;
 import com.skerp.skerp_backend.repo.UserRepository;
+import com.skerp.skerp_backend.repo.EmployeeRepository;
 import com.skerp.skerp_backend.security.JwtService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,21 +37,33 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshExpirationMs;
+
+    @Value("${app.auth.cookie-secure:false}")
+    private boolean secureAuthCookie;
 
     @Autowired
     public AuthController(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             UserDetailsService userDetailsService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            EmployeeRepository employeeRepository
     ) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
+    }
+
+    private Long resolveEmployeeId(Long userId) {
+        return employeeRepository.findByUserId(userId)
+                .map(emp -> emp.getId())
+                .orElse(null);
     }
 
     @PostMapping("/login")
@@ -64,10 +77,10 @@ public class AuthController {
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
 
-            // Create refresh token cookie (secure=false for localhost dev)
+            // Keep the refresh token in an HTTPS-only cookie in production.
             ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
-                    .secure(false) // Set to false for HTTP localhost
+                    .secure(secureAuthCookie)
                     .path("/api/auth") // restrict path to auth endpoints
                     .maxAge(refreshExpirationMs / 1000)
                     .sameSite("Lax")
@@ -87,12 +100,15 @@ public class AuthController {
                     .map(auth -> auth.substring(11))
                     .toList();
 
+            Long employeeId = resolveEmployeeId(user.getId());
+
             AuthResponse authResponse = new AuthResponse(
                     accessToken,
                     user.getUsername(),
                     user.getFullName(),
                     roles,
-                    permissions
+                    permissions,
+                    employeeId
             );
 
             return ResponseEntity.ok(authResponse);
@@ -128,7 +144,7 @@ public class AuthController {
                     // Update the cookie
                     ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", newRefreshToken)
                             .httpOnly(true)
-                            .secure(false)
+                            .secure(secureAuthCookie)
                             .path("/api/auth")
                             .maxAge(refreshExpirationMs / 1000)
                             .sameSite("Lax")
@@ -148,12 +164,15 @@ public class AuthController {
                             .map(auth -> auth.substring(11))
                             .toList();
 
+                    Long employeeId = resolveEmployeeId(user.getId());
+
                     return ResponseEntity.ok(new AuthResponse(
                             newAccessToken,
                             user.getUsername(),
                             user.getFullName(),
                             roles,
-                            permissions
+                            permissions,
+                            employeeId
                     ));
                 }
             }
@@ -167,7 +186,7 @@ public class AuthController {
     public ResponseEntity<?> logout(HttpServletResponse response) {
         ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(secureAuthCookie)
                 .path("/api/auth")
                 .maxAge(0) // delete immediately
                 .sameSite("Lax")
@@ -196,6 +215,8 @@ public class AuthController {
                 .map(auth -> auth.substring(11))
                 .toList();
 
+        Long employeeId = resolveEmployeeId(user.getId());
+
         UserInfoResponse userInfo = new UserInfoResponse(
                 user.getId(),
                 user.getUsername(),
@@ -203,7 +224,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getCompanyId(),
                 roles,
-                permissions
+                permissions,
+                employeeId
         );
 
         return ResponseEntity.ok(userInfo);

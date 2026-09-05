@@ -63,6 +63,15 @@
   min-width: 0;
 }
 
+.sidebar-logo__brand .light-logo {
+  color: #eef2ff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .logo-icon {
   width: 32px;
   height: 32px;

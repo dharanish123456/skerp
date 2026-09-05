@@ -9,5 +9,6 @@ public record UserInfoResponse(
     String email,
     Long companyId,
     List<String> roles,
-    List<String> permissions
+    List<String> permissions,
+    Long employeeId
 ) {}

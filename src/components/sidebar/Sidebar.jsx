@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import ShinyText from '../ShinyText/ShinyText';
 import './Sidebar.css';
 
 const menuSections = [
@@ -48,6 +49,13 @@ const menuSections = [
           href: "#",
           requiredPermission: "VIEW_DEPARTMENTS",
         },
+        {
+          title: "Attendance",
+          icon: "ri:calendar-check-line",
+          page: "attendance",
+          href: "#",
+          requiredPermission: "VIEW_ATTENDANCE",
+        },
       ],
     },
     {
@@ -59,6 +67,26 @@ const menuSections = [
           page: "roles-permissions",
           href: "#",
           requiredPermission: "VIEW_ROLES",
+        },
+      ],
+    },
+    {
+      title: "Self Service",
+      items: [
+        {
+          title: "My Advances",
+          icon: "ri:hand-coin-line",
+          page: "my-advances",
+          href: "#",
+          requiredPermission: "VIEW_OWN_ADVANCES",
+        },
+        {
+          title: "My Attendance",
+          icon: "ri:fingerprint-line",
+          page: "my-attendance",
+          href: "#",
+          requiredPermission: "VIEW_OWN_ATTENDANCE",
+          requiresEmployeeLink: true,
         },
       ],
     },
@@ -76,7 +104,7 @@ const menuSections = [
     onPageChange,
   }) => {
     const [openKey, setOpenKey] = useState(null);
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
 
     // Dynamically restrict page access based on permissions
     const filteredMenuSections = menuSections.map(section => ({
@@ -87,6 +115,7 @@ const menuSections = [
           : item)
         .filter(item => {
           if (item.page && item.requiredPermission && !hasPermission(item.requiredPermission)) return false;
+          if (item.requiresEmployeeLink && !user?.employeeId) return false;
           return !item.submenu || item.submenu.length > 0;
         })
     })).filter(section => section.items.length > 0);
@@ -126,7 +155,8 @@ const menuSections = [
         )
         .find((entry) => entry.pages.includes(currentPage))?.key;
 
-      setOpenKey(activeParentKey ?? null);
+      const timer = window.setTimeout(() => setOpenKey(activeParentKey ?? null), 0);
+      return () => window.clearTimeout(timer);
     }, [currentPage]);
 
     const toggleCollapse = () => onToggle && onToggle();
@@ -173,7 +203,15 @@ const menuSections = [
           <div className="sidebar-logo">
             <div className="sidebar-logo__brand">
               <img src="/logo.png" alt="Logo" className="logo-icon" />
-              <span className="light-logo">MyERP</span>
+              <span className="light-logo">
+                <ShinyText
+                  text="SK - ENTERPRISES"
+                  speed={3}
+                  color="#eef2ff"
+                  shineColor="#a4ab66"
+                  spread={120}
+                />
+              </span>
             </div>
             <button className="sidebar-collapse-btn" onClick={toggleCollapse}>
               <iconify-icon

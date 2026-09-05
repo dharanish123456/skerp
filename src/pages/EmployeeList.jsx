@@ -13,6 +13,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  VisibilityOutlined as ViewIcon,
 } from '@mui/icons-material';
 import api from '../config/api';
 import { useAuth } from '../context/AuthContext';
@@ -28,9 +29,6 @@ const ALL_COLUMNS = [
   { id: 'state',          label: 'State',           sortable: true  },
   { id: 'district',       label: 'District',        sortable: true  },
   { id: 'department',     label: 'Department',      sortable: true  },
-  { id: 'employmentType', label: 'Employment Type', sortable: true  },
-  { id: 'wages',          label: 'Wages/Salary',    sortable: true  },
-  { id: 'joined',         label: 'Joined',          sortable: true  },
   { id: 'status',         label: 'Status',          sortable: true  },
   { id: 'actions',        label: 'Actions',         sortable: false },
 ];
@@ -76,7 +74,7 @@ const exportToCSV = (rows, visibleCols) => {
 };
 
 // ── Component ──────────────────────────────────────────────
-const EmployeeList = ({ onAddClick, onEditClick }) => {
+const EmployeeList = ({ onAddClick, onEditClick, onViewClick }) => {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('CREATE_EMPLOYEES');
   const canEdit = hasPermission('EDIT_EMPLOYEES');
@@ -88,7 +86,7 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
   const [page, setPage]               = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [visibleCols, setVisibleCols] = useState([
-    'id', 'name', 'phone', 'department', 'employmentType', 'wages', 'status', 'joined', 'actions'
+    'id', 'name', 'phone', 'department', 'status', 'actions'
   ]);
   const [columnMenuAnchor, setColumnMenuAnchor] = useState(null);
 
@@ -383,15 +381,14 @@ const EmployeeList = ({ onAddClick, onEditClick }) => {
                         </TableCell>
                       );
 
-                      if (col.id === 'wages') return (
-                        <TableCell key={col.id} sx={{ py: 1.25, fontSize: '0.8125rem', color: '#334155', borderBottom: '1px solid #e2e8f0' }}>
-                          ₹{emp.wages.toLocaleString('en-IN')}{emp.employmentType === 'Daily Wages' ? '/day' : '/month'}
-                        </TableCell>
-                      );
-
                       if (col.id === 'actions') return (
                         <TableCell key={col.id} sx={{ py: 1.25, borderBottom: '1px solid #e2e8f0' }}>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Tooltip title="View profile">
+                              <IconButton onClick={() => onViewClick && onViewClick(emp)} size="small" aria-label={`View ${emp.name || 'employee'} profile`} sx={{ color: '#0f766e', '&:hover': { backgroundColor: 'rgba(13, 148, 136, 0.08)' } }}>
+                                <ViewIcon sx={{ fontSize: '1rem' }} />
+                              </IconButton>
+                            </Tooltip>
                             {canEdit && <Tooltip title="Edit">
                               <IconButton onClick={() => onEditClick && onEditClick(emp)} size="small" sx={{ color: '#6366f1', '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.08)' } }}>
                                 <EditIcon sx={{ fontSize: '1rem' }} />

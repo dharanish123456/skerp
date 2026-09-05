@@ -24,6 +24,8 @@ import {
   Tabs,
   Tab,
   Avatar,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -37,12 +39,16 @@ import {
   Save as SaveIcon,
   Close as CloseIcon,
   Visibility as PreviewIcon,
+  Lock as LockIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import { useIndianStates } from '../hooks/useIndianStates';
 import { useCountryCodes } from '../hooks/useCountryCodes';
 import { usePhoneValidation } from '../hooks/usePhoneValidation';
 import { useCompanyDepartments } from '../hooks/useCompanyDepartments';
 import api from '../config/api';
+import { getRoles } from '../services/roleService';
 
 
 
@@ -239,6 +245,47 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [loading, setLoading] = useState(false);
 
+  const [createUser, setCreateUser] = useState(!!employee?.hasUserAccount || !!employee?.userId);
+  const [loginUsername, setLoginUsername] = useState(employee?.loginUsername || '');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginRoleId, setLoginRoleId] = useState(employee?.loginRoleId || '');
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        name: employee.name || '',
+        email: employee.email || '',
+        countryCode: employee.countryCode || '+91',
+        phone: employee.phone || '',
+        dob: employee.dob ? dayjs(employee.dob) : null,
+        gender: employee.gender || 'Male',
+        state: employee.state || '',
+        district: employee.district || '',
+        address: employee.address || '',
+        companyId: employee.company?.id || employee.companyId || '',
+        departmentId: employee.department?.id || employee.departmentId || '',
+        role: employee.role || '',
+        joined: employee.joined ? dayjs(employee.joined) : dayjs(),
+        employmentType: employee.employmentType || 'Daily Wages',
+        wages: employee.wages || '',
+        status: employee.status || 'Active',
+        aadhaar: employee.aadhaar || '',
+        pan: employee.pan || '',
+        esic: employee.esic || '',
+        insurance: employee.insurance || '',
+        accountNumber: employee.accountNumber || '',
+        ifsc: employee.ifsc || '',
+        bankName: employee.bankName || '',
+      });
+      setCreateUser(!!employee.hasUserAccount || !!employee.userId);
+      setLoginUsername(employee.loginUsername || '');
+      setLoginRoleId(employee.loginRoleId || '');
+      setLoginPassword('');
+    }
+  }, [employee]);
+
   // ── Load draft from session storage on mount ──
   useEffect(() => {
     if (employee) return; // Skip draft loading in edit mode
@@ -273,6 +320,18 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
     }, 500);
     return () => clearTimeout(timer);
   }, [formData, files, activeTab, employee]);
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        const roleList = await getRoles();
+        setRoles(roleList);
+      } catch (error) {
+        console.error('Failed to load roles:', error);
+      }
+    };
+    loadRoles();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -338,6 +397,17 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
       if (!formData.ifsc.trim()) newErrors.ifsc = 'IFSC required';
       else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc.trim().toUpperCase()))
         newErrors.ifsc = 'Format: SBIN0012345';
+
+      // Login account validation
+      if (createUser) {
+        if (!loginUsername.trim()) newErrors.loginUsername = 'Username is required';
+        if (!employee?.id && !loginPassword.trim()) {
+          newErrors.loginPassword = 'Password is required';
+        } else if (loginPassword.trim() && loginPassword.length < 4) {
+          newErrors.loginPassword = 'Min 4 characters';
+        }
+        if (!loginRoleId) newErrors.loginRoleId = 'Role is required';
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -398,6 +468,16 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
       fd.append('ifsc', formData.ifsc);
       fd.append('bankName', formData.bankName || '');
 
+      // Login account data
+      if (createUser) {
+        fd.append('createUser', 'true');
+        fd.append('loginUsername', loginUsername);
+        if (loginPassword) {
+          fd.append('loginPassword', loginPassword);
+        }
+        fd.append('loginRoleId', String(loginRoleId));
+      }
+
       // Attach proof files if selected
       if (files.aadhaarProof) fd.append('aadhaarProofFile', files.aadhaarProof);
       if (files.panProof) fd.append('panProofFile', files.panProof);
@@ -421,7 +501,8 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
       }, 1500);
 
     } catch (err) {
-      setSnackbarMessage('Registration failed. Connection error.');
+      const msg = err.response?.data?.message || err.message || 'Registration failed. Connection error.';
+      setSnackbarMessage(msg);
       setSnackbarSeverity('error');
       setShowSnackbar(true);
     } finally {
@@ -693,10 +774,79 @@ const AddEmployee = ({ onCancel, onSuccess, employee }) => {
                 <FormField label="IFSC Code" required>
                   <TextField fullWidth size="small" name="ifsc" value={formData.ifsc} onChange={handleChange} error={!!errors.ifsc} helperText={errors.ifsc} inputProps={{ maxLength: 11 }} />
                 </FormField>
-                <FormField label="Bank Name">
+                 <FormField label="Bank Name">
                   <TextField fullWidth size="small" name="bankName" value={formData.bankName} onChange={handleChange} />
                 </FormField>
               </Grid>
+
+              <Divider sx={{ my: 3 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LockIcon sx={{ color: '#6366f1', fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight="600">
+                    {employee?.id ? 'Login Account Credentials' : 'Login Account'}
+                  </Typography>
+                  {employee?.id && (employee.hasUserAccount || employee.userId) && (
+                    <Chip label="Account Linked" color="success" size="small" variant="outlined" sx={{ fontWeight: 600, ml: 1 }} />
+                  )}
+                </Box>
+                {(!employee?.id || (!employee?.hasUserAccount && !employee?.userId)) && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={createUser}
+                        onChange={(e) => setCreateUser(e.target.checked)}
+                        sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#6366f1' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#6366f1' } }}
+                      />
+                    }
+                    label={<Typography variant="body2" color="textSecondary">Create login account</Typography>}
+                  />
+                )}
+              </Box>
+
+              {createUser && (
+                <Grid container spacing={2}>
+                  <FormField label="Username" required>
+                    <TextField
+                      fullWidth size="small" value={loginUsername}
+                      onChange={(e) => { setLoginUsername(e.target.value); if (errors.loginUsername) setErrors(prev => ({ ...prev, loginUsername: '' })); }}
+                      error={!!errors.loginUsername} helperText={errors.loginUsername}
+                      placeholder="e.g. john.doe"
+                    />
+                  </FormField>
+                  <FormField label="Password" required={!employee?.id || (!employee?.hasUserAccount && !employee?.userId)}>
+                    <TextField
+                      fullWidth size="small" type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPassword}
+                      onChange={(e) => { setLoginPassword(e.target.value); if (errors.loginPassword) setErrors(prev => ({ ...prev, loginPassword: '' })); }}
+                      error={!!errors.loginPassword}
+                      helperText={errors.loginPassword || (employee?.id && (employee?.hasUserAccount || employee?.userId) ? 'Leave blank to keep existing password' : '')}
+                      placeholder={employee?.id && (employee?.hasUserAccount || employee?.userId) ? 'Enter new password to update' : 'Min 4 characters'}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowLoginPassword(p => !p)}>
+                              {showLoginPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </FormField>
+                  <FormField label="Role" required>
+                    <Select
+                      fullWidth size="small" value={loginRoleId}
+                      onChange={(e) => { setLoginRoleId(e.target.value); if (errors.loginRoleId) setErrors(prev => ({ ...prev, loginRoleId: '' })); }}
+                      error={!!errors.loginRoleId}
+                      displayEmpty
+                    >
+                      <MenuItem value="" disabled><em>Select a role</em></MenuItem>
+                      {roles.map(r => <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>)}
+                    </Select>
+                    {errors.loginRoleId && <FormHelperText error>{errors.loginRoleId}</FormHelperText>}
+                  </FormField>
+                </Grid>
+              )}
             </Paper>
           )}
 

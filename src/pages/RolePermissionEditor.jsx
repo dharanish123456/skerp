@@ -30,6 +30,9 @@ const PAGE_ROWS = [
   { module: 'Departments', label: 'Departments', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
   { module: 'Expenses', label: 'Expenses', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
   { module: 'Employee Advances', label: 'Employee Advances', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
+  { module: 'Attendance', label: 'Attendance', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
+  { module: 'My Advances', label: 'My Advances', actions: ['VIEW'] },
+  { module: 'My Attendance', label: 'My Attendance', actions: ['VIEW'] },
   { module: 'Roles & Permissions', label: 'Roles & Permissions', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
 ];
 
@@ -41,9 +44,10 @@ const ACTION_LABELS = {
 };
 
 const permissionKey = (module, action) => `${module}:${action}`;
+const PROTECTED_SUPER_ADMIN_PERMISSIONS = new Set(['VIEW_ROLES', 'EDIT_ROLES']);
 
 const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, refreshUser } = useAuth();
   const [currentRole, setCurrentRole] = useState(role);
   const [permissions, setPermissions] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -53,7 +57,7 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
   const [feedback, setFeedback] = useState({ open: false, message: '', severity: 'success' });
 
   const isSuperAdmin = currentRole?.name?.toUpperCase() === 'SUPER_ADMIN';
-  const canEdit = hasPermission('EDIT_ROLES') && !isSuperAdmin;
+  const canEdit = hasPermission('EDIT_ROLES');
   const isDirty = useMemo(() => {
     if (selectedIds.size !== initialIds.size) return true;
     return [...selectedIds].some((id) => !initialIds.has(id));
@@ -79,9 +83,11 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
           PAGE_ROWS.some((page) => page.module === permission.module && page.actions.includes(permission.action))
         );
         const managedIds = new Set(managedCatalog.map((permission) => permission.id));
-        const selected = isSuperAdmin
-          ? managedIds
-          : new Set(roleDetails.permissions.filter((permission) => managedIds.has(permission.id)).map((permission) => permission.id));
+        const selected = new Set(
+          roleDetails.permissions
+            .filter((permission) => managedIds.has(permission.id))
+            .map((permission) => permission.id)
+        );
         setCurrentRole(roleDetails);
         setPermissions(managedCatalog);
         setSelectedIds(selected);
@@ -114,6 +120,7 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
     if (!canEdit) return;
     const permission = permissionMap.get(permissionKey(page.module, action));
     if (!permission) return;
+    if (isSuperAdmin && PROTECTED_SUPER_ADMIN_PERMISSIONS.has(permission.name)) return;
 
     setSelectedIds((previous) => {
       const next = new Set(previous);
@@ -142,6 +149,7 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
       const savedRole = await updateRolePermissions(currentRole.id, [...selectedIds]);
       setCurrentRole(savedRole);
       setInitialIds(new Set(selectedIds));
+      if (isSuperAdmin) await refreshUser();
       setFeedback({ open: true, message: 'Role permissions updated successfully', severity: 'success' });
       onSaved?.(savedRole);
     } catch (error) {
@@ -182,7 +190,7 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
 
       {isSuperAdmin && (
         <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
-          SUPER_ADMIN always has full access and cannot be modified.
+          SUPER_ADMIN permissions can be customized. Role page access remains protected to prevent lockout.
         </Alert>
       )}
 
@@ -217,7 +225,11 @@ const RolePermissionEditor = ({ role, onBack, onSaved, onDirtyChange }) => {
                         <TableCell key={action} align="center">
                           <Checkbox
                             checked={selectedIds.has(permission.id)}
-                            disabled={!canEdit || (action !== 'VIEW' && !hasPageAccess)}
+                            disabled={
+                              !canEdit ||
+                              (isSuperAdmin && PROTECTED_SUPER_ADMIN_PERMISSIONS.has(permission.name)) ||
+                              (action !== 'VIEW' && !hasPageAccess)
+                            }
                             onChange={() => handleToggle(page, action)}
                             inputProps={{ 'aria-label': `${page.label} ${ACTION_LABELS[action]}` }}
                           />

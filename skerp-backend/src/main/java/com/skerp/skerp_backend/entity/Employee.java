@@ -98,4 +98,19 @@ public class Employee {
 
     @Column(name = "insurance_proof")
     private String insuranceProof;
+
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Transient
+    private Boolean hasUserAccount;
+
+    @Transient
+    private String loginUsername;
+
+    @Transient
+    private Long loginRoleId;
+
+    @Transient
+    private String loginRoleName;
 }
